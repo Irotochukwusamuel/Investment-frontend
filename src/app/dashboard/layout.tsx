@@ -37,7 +37,7 @@ import {
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from "next-themes"
-import { useLogout } from '@/lib/hooks/useAuth'
+import { useLogout, useUser } from '@/lib/hooks/useAuth'
 
 // Notification types
 type NotificationType = 'success' | 'warning' | 'info'
@@ -88,15 +88,6 @@ const initialNotifications: Notification[] = [
   },
 ]
 
-// Add this after the notifications array
-const userProfile: UserProfile = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  role: "Premium Investor",
-  avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-  lastActive: "Active now"
-}
-
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'My Wallet', href: '/dashboard/wallet', icon: WalletIcon },
@@ -118,6 +109,16 @@ export default function DashboardLayout({
   const { setTheme, resolvedTheme } = useTheme()
   const logout = useLogout();
   const router = useRouter();
+  const { data: user } = useUser();
+
+  // Create user profile from actual user data
+  const userProfile = {
+    name: user ? `${user.firstName} ${user.lastName}` : 'Loading...',
+    email: user?.email || 'Loading...',
+    role: 'Investor', // Default role since it's not in the User interface
+    avatar: '', // No avatar field in User interface
+    lastActive: 'Active now'
+  }
 
   useEffect(() => {
     const handleScroll = () => {
