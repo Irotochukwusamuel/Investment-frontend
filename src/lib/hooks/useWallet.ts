@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, endpoints, handleApiResponse } from '../api';
 import { toast } from 'sonner';
+import { useUser } from './useAuth';
 
 // Types
 export interface WalletBalance {
@@ -131,11 +132,13 @@ export interface WalletStats {
 
 // Wallet hooks
 export const useWalletBalance = () => {
+  const { data: user } = useUser();
+  
   return useQuery({
-    queryKey: ['wallet', 'balance'],
+    queryKey: ['wallet', 'balance', user?.id],
     queryFn: async () => {
       // Get current user's wallets
-      const response = await api.get('/wallets');
+      const response = await api.get(`/wallets?userId=${user?.id}`);
       const wallets = handleApiResponse<any[]>(response);
       
       // Transform wallet data to match frontend interface
@@ -164,6 +167,7 @@ export const useWalletBalance = () => {
         referralEarnings: 0,
       };
     },
+    enabled: !!user?.id, // Only run query when user is available
   });
 };
 
