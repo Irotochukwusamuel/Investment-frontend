@@ -69,6 +69,25 @@ function daysBetween(date1: Date, date2: Date) {
   return Math.floor((date2.getTime() - date1.getTime()) / msPerDay);
 }
 
+// Helper to format currency
+const formatCurrency = (amount: number, currency: 'naira' | 'usdt') => {
+  if (currency === 'naira') return `₦${amount.toLocaleString()}`;
+  return `${amount} USDT`;
+};
+
+// Helper to format date
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
 export default function RoiPage() {
   const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
@@ -92,12 +111,6 @@ export default function RoiPage() {
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
 
   const isLoading = investmentsLoading || statsLoading
-
-  // Helper to format currency
-  const formatCurrency = (amount: number, currency: 'naira' | 'usdt') => {
-    if (currency === 'naira') return `₦${amount.toLocaleString()}`;
-    return `${amount} USDT`;
-  };
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -123,15 +136,16 @@ export default function RoiPage() {
   // ROI transactions from payouts
   const roiTransactions = investments?.flatMap(investment => 
     investment.payoutHistory?.map(payout => ({
-      id: `${investment.id}-${payout.date}`,
+      id: payout.id,
       plan: investment.plan?.name || 'Investment Plan',
-      amount: formatCurrency(payout.amount, investment.currency),
-      date: payout.date,
-      status: payout.status as 'completed' | 'pending',
-      type: payout.type as 'daily' | 'weekly' | 'monthly',
-      currency: investment.currency,
+      amount: formatCurrency(payout.amount, payout.currency),
+      date: formatDate(payout.createdAt),
+      type: payout.type,
+      status: payout.status,
+      description: payout.description,
+      reference: payout.reference
     })) || []
-  ) || []
+  ) || [];
 
   // Calculate pagination
   const filteredTransactions = roiTransactions.filter(transaction => {

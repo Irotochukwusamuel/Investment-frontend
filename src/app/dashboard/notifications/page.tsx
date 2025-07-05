@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BellIcon,
@@ -23,70 +23,108 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
-type NotificationType = 'success' | 'warning' | 'info'
+type NotificationType = 'success' | 'warning' | 'info' | 'error'
 
 interface Notification {
-  id: number
-  type: NotificationType
+  _id: string
   title: string
   message: string
-  time: string
+  type: NotificationType
+  category: string
   read: boolean
+  createdAt: string
+  actionUrl?: string
+  actionText?: string
 }
 
-// Sample notifications with more data
-const notifications: Notification[] = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Investment Successful',
-    message: 'Your investment of ₦500,000 has been processed successfully. You can view the details in your investment portfolio.',
-    time: '5 minutes ago',
-    read: false,
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Withdrawal Pending',
-    message: 'Your withdrawal request of ₦200,000 is being processed. This usually takes 24-48 hours to complete.',
-    time: '1 hour ago',
-    read: false,
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'New Investment Plan',
-    message: 'Check out our new high-yield investment plan with returns up to 25% APY. Limited time offer!',
-    time: '2 hours ago',
-    read: true,
-  },
-  {
-    id: 4,
-    type: 'success',
-    title: 'ROI Payment Received',
-    message: 'You have received ₦25,000 as ROI payment for your investment in the Growth Fund.',
-    time: '3 hours ago',
-    read: true,
-  },
-  {
-    id: 5,
-    type: 'warning',
-    title: 'Account Verification Required',
-    message: 'Please complete your account verification to unlock all features and higher withdrawal limits.',
-    time: '1 day ago',
-    read: false,
-  },
-]
+interface NotificationsResponse {
+  notifications: Notification[]
+  total: number
+  unreadCount: number
+  page: number
+  totalPages: number
+}
+
+// Hooks for notifications API
+const useNotifications = (page: number = 1, limit: number = 20, filters: { unreadOnly?: boolean; category?: string } = {}) => {
+  return useQuery({
+    queryKey: ['notifications', page, limit, filters],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(filters.unreadOnly && { unreadOnly: 'true' }),
+        ...(filters.category && { category: filters.category }),
+      })
+      
+      const response = await api.get(`/notifications?${params}`)
+      return response.data as NotificationsResponse
+    },
+  })
+}
+
+const useMarkAsRead = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch(`/notifications/${id}/read`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      toast.success('Notification marked as read')
+    },
+    onError: () => {
+      toast.error('Failed to mark notification as read')
+    },
+  })
+}
+
+const useMarkAllAsRead = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.patch('/notifications/mark-all-read')
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      toast.success('All notifications marked as read')
+    },
+    onError: () => {
+      toast.error('Failed to mark all notifications as read')
+    },
+  })
+}
 
 export default function NotificationsPage() {
-  const [notificationsList, setNotificationsList] = useState<Notification[]>(notifications)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<NotificationType | 'all'>('all')
   const [readFilter, setReadFilter] = useState<'all' | 'read' | 'unread'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const filteredNotifications = notificationsList.filter(notification => {
+  const { data: notificationsData, isLoading, error } = useNotifications(
+    currentPage,
+    20,
+    {
+      unreadOnly: readFilter === 'unread',
+      category: typeFilter !== 'all' ? typeFilter : undefined,
+    }
+  )
+
+  const markAsRead = useMarkAsRead()
+  const markAllAsRead = useMarkAllAsRead()
+
+  // Filter notifications based on search query and type filter
+  const filteredNotifications = notificationsData?.notifications?.filter(notification => {
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       notification.message.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = typeFilter === 'all' || notification.type === typeFilter
@@ -94,9 +132,9 @@ export default function NotificationsPage() {
       (readFilter === 'read' && notification.read) ||
       (readFilter === 'unread' && !notification.read)
     return matchesSearch && matchesType && matchesRead
-  })
+  }) || []
 
-  const unreadCount = notificationsList.filter(n => !n.read).length
+  const unreadCount = notificationsData?.unreadCount || 0
 
   const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
@@ -106,20 +144,41 @@ export default function NotificationsPage() {
         return <ExclamationCircleIcon className="h-5 w-5 text-yellow-500" />
       case 'info':
         return <InformationCircleIcon className="h-5 w-5 text-blue-500" />
+      case 'error':
+        return <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
     }
   }
 
-  const markAsRead = (id: number) => {
-    setNotificationsList(prev =>
-      prev.map(notification =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    )
+  const handleMarkAsRead = (id: string) => {
+    markAsRead.mutate(id)
   }
 
-  const markAllAsRead = () => {
-    setNotificationsList(prev =>
-      prev.map(notification => ({ ...notification, read: true }))
+  const handleMarkAllAsRead = () => {
+    markAllAsRead.mutate()
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return date.toLocaleDateString()
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Notifications</h1>
+            <p className="text-gray-600">Unable to load notifications. Please try again later.</p>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -155,10 +214,11 @@ export default function NotificationsPage() {
                   variant="default"
                   size="sm"
                   className="flex items-center gap-2"
-                  onClick={markAllAsRead}
+                  onClick={handleMarkAllAsRead}
+                  disabled={markAllAsRead.isPending}
                 >
                   <CheckIcon className="h-4 w-4" />
-                  Mark all as read
+                  {markAllAsRead.isPending ? 'Marking...' : 'Mark all as read'}
                 </Button>
               )}
             </div>
@@ -219,18 +279,38 @@ export default function NotificationsPage() {
 
           {/* Notifications List */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            {filteredNotifications.length === 0 ? (
+            {isLoading ? (
+              <div className="divide-y divide-gray-100">
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="flex items-start space-x-4 p-4">
+                    <Skeleton className="h-5 w-5 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                 <BellIcon className="h-12 w-12 mb-4" />
                 <p className="text-lg font-medium">No notifications found</p>
-                <p className="text-sm text-gray-400">Try adjusting your filters</p>
+                <p className="text-sm text-gray-400">
+                  {searchQuery || typeFilter !== 'all' || readFilter !== 'all' 
+                    ? 'Try adjusting your filters' 
+                    : 'You have no notifications yet'}
+                </p>
               </div>
             ) : (
               <ScrollArea className="h-[calc(100vh-16rem)]">
                 <div className="divide-y divide-gray-100">
                   {filteredNotifications.map((notification) => (
                     <motion.div
-                      key={notification.id}
+                      key={notification._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={cn(
@@ -247,19 +327,32 @@ export default function NotificationsPage() {
                             {notification.title}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {notification.time}
+                            {formatTimeAgo(notification.createdAt)}
                           </p>
                         </div>
                         <p className="mt-1 text-sm text-gray-500">
                           {notification.message}
                         </p>
+                        {notification.actionUrl && notification.actionText && (
+                          <div className="mt-2">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 h-auto text-blue-600 hover:text-blue-800"
+                              onClick={() => window.location.href = notification.actionUrl!}
+                            >
+                              {notification.actionText}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       {!notification.read && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="flex-shrink-0"
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={() => handleMarkAsRead(notification._id)}
+                          disabled={markAsRead.isPending}
                         >
                           <CheckIcon className="h-4 w-4" />
                         </Button>

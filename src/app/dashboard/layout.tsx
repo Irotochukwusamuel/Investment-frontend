@@ -38,20 +38,8 @@ import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from "next-themes"
 import { useLogout, useUser } from '@/lib/hooks/useAuth'
+import { useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, formatNotificationTime } from '@/lib/hooks/useNotifications'
 
-// Notification types
-type NotificationType = 'success' | 'warning' | 'info'
-
-interface Notification {
-  id: number
-  type: NotificationType
-  title: string
-  message: string
-  time: string
-  read: boolean
-}
-
-// Add these new interfaces after the Notification interface
 interface UserProfile {
   name: string
   email: string
@@ -59,34 +47,6 @@ interface UserProfile {
   avatar: string
   lastActive: string
 }
-
-// Sample notifications
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Investment Successful',
-    message: 'Your investment of ₦500,000 has been processed successfully.',
-    time: '5 minutes ago',
-    read: false,
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Withdrawal Pending',
-    message: 'Your withdrawal request of ₦200,000 is being processed.',
-    time: '1 hour ago',
-    read: false,
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'New Investment Plan',
-    message: 'Check out our new high-yield investment plan.',
-    time: '2 hours ago',
-    read: true,
-  },
-]
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -104,12 +64,20 @@ export default function DashboardLayout({
 }) {
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
   const pathname = usePathname()
   const { setTheme, resolvedTheme } = useTheme()
   const logout = useLogout();
   const router = useRouter();
   const { data: user } = useUser();
+
+  // Use real notifications from the API
+  const { data: notificationsData } = useNotifications({ limit: 10 });
+  const { data: unreadCountData } = useUnreadNotificationsCount();
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+
+  const notifications = notificationsData?.notifications || [];
+  const unreadCount = unreadCountData?.count || 0;
 
   // Create user profile from actual user data
   const userProfile = {
@@ -128,9 +96,7 @@ export default function DashboardLayout({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const unreadCount = notifications.filter((n: Notification) => !n.read).length
-
-  const getNotificationIcon = (type: NotificationType) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'success':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />
@@ -138,21 +104,19 @@ export default function DashboardLayout({
         return <ExclamationCircleIcon className="h-5 w-5 text-yellow-500" />
       case 'info':
         return <InformationCircleIcon className="h-5 w-5 text-blue-500" />
+      case 'error':
+        return <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
+      default:
+        return <InformationCircleIcon className="h-5 w-5 text-blue-500" />
     }
   }
 
-  const markAsRead = (id: number) => {
-    setNotifications(prevNotifications => 
-      prevNotifications.map((notification: Notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    )
+  const markAsRead = (id: string) => {
+    markAsReadMutation.mutate(id);
   }
 
   const markAllAsRead = () => {
-    setNotifications(prevNotifications => 
-      prevNotifications.map((notification: Notification) => ({ ...notification, read: true }))
-    )
+    markAllAsReadMutation.mutate();
   }
 
   const handleLogout = async () => {
@@ -394,7 +358,7 @@ export default function DashboardLayout({
                         <div className="space-y-1">
                           {notifications.map((notification) => (
                             <motion.div
-                              key={notification.id}
+                              key={notification._id}
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
@@ -403,7 +367,7 @@ export default function DashboardLayout({
                                 !notification.read && "bg-blue-50 hover:bg-blue-100",
                                 notification.read && "hover:bg-gray-50"
                               )}
-                              onClick={() => markAsRead(notification.id)}
+                              onClick={() => markAsRead(notification._id)}
                             >
                               <div className="flex-shrink-0 mt-1">
                                 {getNotificationIcon(notification.type)}
@@ -416,7 +380,7 @@ export default function DashboardLayout({
                                   {notification.message}
                                 </p>
                                 <p className="text-xs text-gray-400 mt-1">
-                                  {notification.time}
+                                  {formatNotificationTime(notification.createdAt)}
                                 </p>
                               </div>
                               {!notification.read && (

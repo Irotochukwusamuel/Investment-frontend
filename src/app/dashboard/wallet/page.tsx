@@ -48,6 +48,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Inter, Poppins } from 'next/font/google'
 import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal } from '@/lib/hooks/useWallet'
+import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
 
 const inter = Inter({ subsets: ['latin'] })
 const poppins = Poppins({ 
@@ -79,50 +80,21 @@ const depositAccounts: DepositAccount[] = [
   },
 ]
 
-interface WithdrawalAccount {
-  currency: string
-  bankName?: string
-  accountNumber?: string
-  accountName?: string
-  walletAddress?: string
-  network?: string
-}
-
-const withdrawalAccounts: WithdrawalAccount[] = [
-  {
-    currency: 'NGN',
-    bankName: 'First Bank',
-    accountNumber: '1234567890',
-    accountName: 'John Doe',
-  },
-  {
-    currency: 'USDT',
-    walletAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-    network: 'TRC20',
-  },
-]
-
 export default function WalletPage() {
   const [activeTab, setActiveTab] = useState('naira')
   const [showDepositDialog, setShowDepositDialog] = useState(false)
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false)
+  const [showFintavaDialog, setShowFintavaDialog] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState('NGN')
   const [amount, setAmount] = useState<string>('')
   const [selectedMethod, setSelectedMethod] = useState('')
-  const [withdrawalMethod, setWithdrawalMethod] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false)
   const [depositStep, setDepositStep] = useState(1)
   const [depositFromAccount, setDepositFromAccount] = useState('')
   const [depositReference, setDepositReference] = useState('')
   const [depositProof, setDepositProof] = useState<File | null>(null)
-  const [withdrawalStep, setWithdrawalStep] = useState(1)
-  const [withdrawalFromAccount, setWithdrawalFromAccount] = useState('')
-  const [withdrawalToAccount, setWithdrawalToAccount] = useState<WithdrawalAccount | null>(null)
-  const [withdrawalReference, setWithdrawalReference] = useState('')
-  const [withdrawalProof, setWithdrawalProof] = useState<File | null>(null)
   const [depositTotal, setDepositTotal] = useState(0)
-  const [withdrawalTotal, setWithdrawalTotal] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [showAllTransactions, setShowAllTransactions] = useState(false)
@@ -187,7 +159,6 @@ export default function WalletPage() {
       const amountValue = Number(amount)
       const fee = calculateWithdrawalFee(amountValue, selectedCurrency)
       setDepositTotal(amountValue + fee)
-      setWithdrawalTotal(amountValue - fee)
     }
   }, [amount, selectedCurrency])
 
@@ -231,14 +202,52 @@ export default function WalletPage() {
   }
 
   const handleDeposit = async () => {
-    if (!amount || !selectedMethod) {
-      toast.error('Please fill in all required fields.')
+    if (!amount) {
+      toast.error('Please enter an amount.')
       return
     }
 
-    // Enforce bank transfer for NGN deposits
-    if (selectedCurrency === 'NGN' && selectedMethod !== 'bank') {
-      toast.error('NGN deposits can only be made via bank transfer.')
+    // Validate minimum amount for NGN
+    if (selectedCurrency === 'NGN' && parseFloat(amount) < 100) {
+      toast.error('Minimum deposit amount for NGN is ₦100')
+      return
+    }
+
+    // Validate minimum amount for USDT
+    if (selectedCurrency === 'USDT' && parseFloat(amount) < 1) {
+      toast.error('Minimum deposit amount for USDT is $1')
+      return
+    }
+
+    // Automatically set payment method based on currency
+    const paymentMethod = selectedCurrency === 'NGN' ? 'fintava' : 'crypto'
+
+    // Handle FINTAVA for NGN deposits
+    if (selectedCurrency === 'NGN' && paymentMethod === 'fintava') {
+      try {
+        setShowDepositDialog(false)
+        setShowFintavaDialog(true)
+        return
+      } catch (error) {
+        toast.error('Failed to open FINTAVA payment dialog')
+        return
+      }
+    }
+
+    // Handle traditional deposits for other currencies
+    if (selectedCurrency !== 'NGN') {
+      if (depositStep === 1) {
+        setDepositStep(2)
+        return
+      } else if (depositStep === 2) {
+        setDepositStep(3)
+        return
+      }
+    }
+
+    // Final submission for traditional deposits
+    if (depositStep === 3 && (!depositFromAccount || !depositReference || !depositProof)) {
+      toast.error('Please provide all required payment details.')
       return
     }
 
@@ -247,17 +256,16 @@ export default function WalletPage() {
       await createDeposit.mutateAsync({
         amount: parseFloat(amount),
         currency: selectedCurrency.toLowerCase() as 'naira' | 'usdt',
-        paymentMethod: selectedMethod as 'bank_transfer' | 'crypto' | 'card'
+        paymentMethod: paymentMethod as 'bank_transfer' | 'crypto' | 'card'
       })
       
       toast.success('Deposit request created successfully')
-          setShowDepositDialog(false)
-          setDepositStep(1)
-          setAmount('')
-          setSelectedMethod('')
-          setDepositProof(null)
-          setDepositReference('')
-          setDepositFromAccount('')
+      setShowDepositDialog(false)
+      setDepositStep(1)
+      setAmount('')
+      setDepositProof(null)
+      setDepositReference('')
+      setDepositFromAccount('')
     } catch (error) {
       toast.error('Failed to create deposit request')
     } finally {
@@ -278,38 +286,40 @@ export default function WalletPage() {
   }
 
   const handleWithdrawal = async () => {
-    if (!amount || !withdrawalMethod) {
-      toast.error('Please fill in all required fields.')
+    if (!amount) {
+      toast.error('Please enter an amount.')
       return
     }
 
-    // Enforce bank account for NGN withdrawals
-    if (selectedCurrency === 'NGN' && withdrawalMethod !== 'bank') {
-      toast.error('NGN withdrawals can only be made to bank accounts.')
+    // Validate minimum amount for NGN
+    if (selectedCurrency === 'NGN' && parseFloat(amount) < 100) {
+      toast.error('Minimum withdrawal amount for NGN is ₦100')
       return
     }
 
-    // Validate bank account details for NGN withdrawals
-    if (selectedCurrency === 'NGN' && withdrawalMethod === 'bank' && 
-        (!withdrawalToAccount?.bankName || !withdrawalToAccount?.accountNumber || !withdrawalToAccount?.accountName)) {
-      toast.error('Please provide complete bank account details.')
+    // Validate minimum amount for USDT
+    if (selectedCurrency === 'USDT' && parseFloat(amount) < 1) {
+      toast.error('Minimum withdrawal amount for USDT is $1')
       return
     }
 
     setIsProcessing(true)
     try {
+      // Map currency to backend format
+      const currencyMap = {
+        'NGN': 'naira',
+        'USDT': 'usdt'
+      } as const
+      
       await createWithdrawal.mutateAsync({
         amount: parseFloat(amount),
-        currency: selectedCurrency.toLowerCase() as 'naira' | 'usdt',
-        withdrawalMethod: withdrawalMethod as 'bank_transfer' | 'crypto'
+        currency: currencyMap[selectedCurrency as keyof typeof currencyMap],
+        notes: `Withdrawal request for ${selectedCurrency}`,
       })
       
       toast.success('Withdrawal request created successfully')
-          setShowWithdrawDialog(false)
-          setWithdrawalStep(1)
-          setAmount('')
-          setWithdrawalMethod('')
-          setWithdrawalToAccount(null)
+      setShowWithdrawDialog(false)
+      setAmount('')
     } catch (error) {
       toast.error('Failed to create withdrawal request')
     } finally {
@@ -319,6 +329,11 @@ export default function WalletPage() {
 
   const getBalance = (currency: string) => {
     return walletBalances.find(balance => balance.currency === currency)
+  }
+
+  const getAvailableBalance = (currency: string) => {
+    const balance = getBalance(currency)
+    return balance ? balance.available : 0
   }
 
   const formatAmount = (amount: number, currency: string) => {
@@ -431,7 +446,7 @@ export default function WalletPage() {
                       <div className="mt-3 space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500 font-medium">Available</span>
-                          <span className="font-semibold">{formatAmount(balance.available, balance.currency)}</span>
+                          <span className="font-semibold">{formatAmount(getAvailableBalance(balance.currency), balance.currency)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500 font-medium">Pending</span>
@@ -444,229 +459,26 @@ export default function WalletPage() {
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row justify-center items-center gap-2 w-full">
-                      <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
-                        <DialogTrigger asChild>
-                          <Button
-                            onClick={() => {
-                              setSelectedCurrency(balance.currency)
-                              setWithdrawalToAccount(withdrawalAccounts.find(acc => acc.currency === balance.currency) || null)
-                              setShowDepositDialog(true)
-                            }}
-                            className="w-full sm:w-auto h-12 px-6 py-3 bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] shadow-lg hover:shadow-xl transition-all duration-300"
-                          >
-                            <ArrowDownIcon className="mr-2 h-4 w-4" />
-                            Deposit
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
-                          <DialogHeader>
-                            <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                              Deposit {balance.currency}
-                            </DialogTitle>
-                            <DialogDescription className="text-gray-600">
-                              {depositStep === 1 ? 'Enter the amount you want to deposit' : 
-                               depositStep === 2 ? 'Complete your deposit details' :
-                               'Upload proof of payment'}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            {depositStep === 1 ? (
-                              <>
-                                <div>
-                                  <Label className="text-gray-700 font-medium">Amount</Label>
-                                  <div className="relative mt-1">
-                                    {balance.currency === 'NGN' ? (
-                                      <BanknotesIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                    ) : (
-                                      <CurrencyDollarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                    )}
-                                    <Input
-                                      type="text"
-                                      value={balance.currency === 'NGN' ? `₦${formatNGNAmount(amount)}` : amount}
-                                      onChange={balance.currency === 'NGN' ? handleNGNAmountChange : (e) => setAmount(e.target.value)}
-                                      className="pl-10 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                      placeholder={balance.currency === 'NGN' ? '₦0.00' : `0.00 ${balance.currency}`}
-                                    />
-                                  </div>
-                                  {balance.currency === 'NGN' && (
-                                    <p className="mt-1 text-sm text-gray-500">
-                                      Enter amount in Naira (₦)
-                                    </p>
-                                  )}
-                                </div>
-                                <div>
-                                  <Label className="text-gray-700 font-medium">Payment Method</Label>
-                                  <Select 
-                                    value={selectedMethod} 
-                                    onValueChange={setSelectedMethod}
-                                    disabled={balance.currency === 'NGN'}
-                                  >
-                                    <SelectTrigger className="mt-1 bg-white/50 backdrop-blur-sm border-2">
-                                      <SelectValue placeholder="Select payment method" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {balance.currency === 'NGN' ? (
-                                        <SelectItem value="bank">Bank Transfer</SelectItem>
-                                      ) : (
-                                        <>
-                                          <SelectItem value="bank">Bank Transfer</SelectItem>
-                                          <SelectItem value="card">Credit/Debit Card</SelectItem>
-                                          <SelectItem value="crypto">Cryptocurrency</SelectItem>
-                                        </>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  {balance.currency === 'NGN' && (
-                                    <p className="mt-1 text-sm text-gray-500">
-                                      NGN deposits can only be made via bank transfer
-                                    </p>
-                                  )}
-                                </div>
-                              </>
-                            ) : depositStep === 2 ? (
-                              <div className="space-y-4">
-                                <Alert className="bg-blue-50 border-blue-200">
-                                  <CheckCircleIcon className="h-4 w-4 text-blue-600" />
-                                  <AlertTitle className="text-blue-800 font-semibold">Deposit Details</AlertTitle>
-                                  <AlertDescription className="text-blue-700">
-                                    Please send {balance.currency === 'NGN' ? `₦${formatNGNAmount(amount)}` : formatAmount(Number(amount), balance.currency)} to the following account:
-                                  </AlertDescription>
-                                </Alert>
-                                <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
-                                  {withdrawalToAccount?.bankName ? (
-                                    <div className="space-y-2">
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 font-medium">Bank Name</span>
-                                        <span className="font-semibold">{withdrawalToAccount.bankName}</span>
-                                      </div>
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 font-medium">Account Number</span>
-                                        <span className="font-semibold">{withdrawalToAccount.accountNumber}</span>
-                                      </div>
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 font-medium">Account Name</span>
-                                        <span className="font-semibold">{withdrawalToAccount.accountName}</span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-2">
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 font-medium">Network</span>
-                                        <span className="font-semibold">{withdrawalToAccount?.network}</span>
-                                      </div>
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500 font-medium">Wallet Address</span>
-                                        <span className="font-semibold">{withdrawalToAccount?.walletAddress}</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  <div className="mt-4 space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Amount</span>
-                                      <span className="font-semibold">{formatAmount(Number(amount), balance.currency)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Payment Method</span>
-                                      <span className="font-semibold capitalize">{selectedMethod}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Reference</span>
-                                      <span className="font-semibold">TRX{Math.random().toString(36).substring(7).toUpperCase()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-4">
-                                <Alert className="bg-green-50 border-green-200">
-                                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                                  <AlertTitle className="text-green-800 font-semibold">Proof of Payment</AlertTitle>
-                                  <AlertDescription className="text-green-700">
-                                    Please provide your payment details and upload proof of payment
-                                  </AlertDescription>
-                                </Alert>
-                                <div className="space-y-4">
-                                  <div>
-                                    <Label className="text-gray-700 font-medium">Account/Wallet ID Used</Label>
-                                    <Input
-                                      value={depositFromAccount}
-                                      onChange={(e) => setDepositFromAccount(e.target.value)}
-                                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                      placeholder="Enter the account or wallet ID you used"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-gray-700 font-medium">Transaction Reference</Label>
-                                    <Input
-                                      value={depositReference}
-                                      onChange={(e) => setDepositReference(e.target.value)}
-                                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                      placeholder="Enter your bank/crypto transaction reference"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-gray-700 font-medium">Proof of Payment</Label>
-                                    <div className="mt-1">
-                                      <Input
-                                        type="file"
-                                        accept="image/*,.pdf"
-                                        onChange={handleFileChange}
-                                        className="bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                      />
-                                      <p className="mt-1 text-sm text-gray-500">
-                                        Upload screenshot or PDF of your payment (max 5MB)
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setShowDepositDialog(false)
-                                setDepositStep(1)
-                                setAmount('')
-                                setSelectedMethod('')
-                                setDepositProof(null)
-                                setDepositReference('')
-                                setDepositFromAccount('')
-                              }}
-                              className="w-full sm:w-auto bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={handleDeposit}
-                              disabled={isProcessing || !amount || !selectedMethod || 
-                                (depositStep === 3 && (!depositFromAccount || !depositReference || !depositProof))}
-                              className="w-full sm:w-auto bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                            >
-                              {isProcessing ? (
-                                <>
-                                  <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : depositStep === 1 ? (
-                                'Continue'
-                              ) : depositStep === 2 ? (
-                                "I've Made the Payment"
-                              ) : (
-                                'Submit Deposit'
-                              )}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        onClick={() => {
+                          setSelectedCurrency(balance.currency)
+                          if (balance.currency === 'NGN') {
+                            setShowFintavaDialog(true)
+                          } else {
+                            setShowDepositDialog(true)
+                          }
+                        }}
+                        className="w-full sm:w-auto h-12 px-6 py-3 bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <ArrowDownIcon className="mr-2 h-4 w-4" />
+                        Deposit
+                      </Button>
 
                       <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
                         <DialogTrigger asChild>
                           <Button
                             onClick={() => {
                               setSelectedCurrency(balance.currency)
-                              setWithdrawalToAccount(withdrawalAccounts.find(acc => acc.currency === balance.currency) || null)
                               setShowWithdrawDialog(true)
                             }}
                             variant="outline"
@@ -679,179 +491,61 @@ export default function WalletPage() {
                         <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
                           <DialogHeader>
                             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                              Withdraw {balance.currency}
+                              Withdraw {selectedCurrency}
                             </DialogTitle>
                             <DialogDescription className="text-gray-600">
-                              {withdrawalStep === 1 ? 'Enter withdrawal details' : 'Confirm withdrawal'}
+                              Enter the amount you want to withdraw
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
-                            {withdrawalStep === 1 ? (
-                              <>
-                                <div>
-                                  <Label className="text-gray-700 font-medium">Amount</Label>
-                                  <div className="relative mt-1">
-                                    {balance.currency === 'NGN' ? (
-                                      <BanknotesIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                    ) : (
-                                      <CurrencyDollarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                    )}
-                                    <Input
-                                      type="number"
-                                      value={amount}
-                                      onChange={(e) => setAmount(e.target.value)}
-                                      className="pl-10 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                      placeholder={`0.00 ${balance.currency}`}
-                                    />
-                                  </div>
-                                  <p className="mt-1 text-sm text-gray-500">
-                                    Available: {formatAmount(balance.available, balance.currency)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-gray-700 font-medium">Withdrawal Method</Label>
-                                  <Select 
-                                    value={withdrawalMethod} 
-                                    onValueChange={setWithdrawalMethod}
-                                    disabled={balance.currency === 'NGN'}
-                                  >
-                                    <SelectTrigger className="mt-1 bg-white/50 backdrop-blur-sm border-2">
-                                      <SelectValue placeholder="Select withdrawal method" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {balance.currency === 'NGN' ? (
-                                        <SelectItem value="bank">Bank Account</SelectItem>
-                                      ) : (
-                                        <>
-                                          <SelectItem value="bank">Bank Account</SelectItem>
-                                          <SelectItem value="card">Debit Card</SelectItem>
-                                          <SelectItem value="crypto">Cryptocurrency Wallet</SelectItem>
-                                        </>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  {balance.currency === 'NGN' && (
-                                    <p className="mt-1 text-sm text-gray-500">
-                                      NGN withdrawals can only be made to bank accounts
-                                    </p>
-                                  )}
-                                </div>
-                                {(withdrawalMethod === 'bank' || balance.currency === 'NGN') && (
-                                  <div className="space-y-4">
-                                    <div>
-                                      <Label className="text-gray-700 font-medium">Bank Name</Label>
-                                      <Input
-                                        value={withdrawalToAccount?.bankName || ''}
-                                        onChange={(e) => setWithdrawalToAccount(prev => ({ ...prev!, bankName: e.target.value }))}
-                                        className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                        placeholder="Enter bank name"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-gray-700 font-medium">Account Number</Label>
-                                      <Input
-                                        value={withdrawalToAccount?.accountNumber || ''}
-                                        onChange={(e) => setWithdrawalToAccount(prev => ({ ...prev!, accountNumber: e.target.value }))}
-                                        className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                        placeholder="Enter account number"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-gray-700 font-medium">Account Name</Label>
-                                      <Input
-                                        value={withdrawalToAccount?.accountName || ''}
-                                        onChange={(e) => setWithdrawalToAccount(prev => ({ ...prev!, accountName: e.target.value }))}
-                                        className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                        placeholder="Enter account name"
-                                      />
-                                    </div>
-                                  </div>
+                            <div>
+                              <Label className="text-gray-700 font-medium">Amount</Label>
+                              <div className="relative mt-1">
+                                {selectedCurrency === 'NGN' ? (
+                                  <BanknotesIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                ) : (
+                                  <CurrencyDollarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                 )}
-                                {withdrawalMethod === 'crypto' && balance.currency !== 'NGN' && (
-                                  <div className="space-y-4">
-                                    <div>
-                                      <Label className="text-gray-700 font-medium">Wallet Address</Label>
-                                      <Input
-                                        value={withdrawalToAccount?.walletAddress || ''}
-                                        onChange={(e) => setWithdrawalToAccount(prev => ({ ...prev!, walletAddress: e.target.value }))}
-                                        className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                        placeholder="Enter wallet address"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-gray-700 font-medium">Network</Label>
-                                      <Input
-                                        value={withdrawalToAccount?.network || ''}
-                                        onChange={(e) => setWithdrawalToAccount(prev => ({ ...prev!, network: e.target.value }))}
-                                        className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                        placeholder="Enter network (e.g., Bitcoin, Ethereum)"
-                                      />
-                                    </div>
+                                <Input
+                                  type="number"
+                                  value={amount}
+                                  onChange={(e) => setAmount(e.target.value)}
+                                  className="pl-10 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                                  placeholder={`0.00 ${selectedCurrency}`}
+                                />
+                              </div>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Available: {formatAmount(getAvailableBalance(selectedCurrency), selectedCurrency)}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Minimum withdrawal: {selectedCurrency === 'NGN' ? '₦100' : '$1'}
+                              </p>
+                            </div>
+
+                            <Alert className="bg-blue-50 border-blue-200">
+                              <InformationCircleIcon className="h-4 w-4 text-blue-600" />
+                              <AlertTitle className="text-blue-800 font-semibold">Bank Details</AlertTitle>
+                              <AlertDescription className="text-blue-700">
+                                Your withdrawal will be processed to your registered bank account. 
+                                Please ensure your bank details are up to date in your profile.
+                              </AlertDescription>
+                            </Alert>
+
+                            {amount && (
+                              <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
+                                <div className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500 font-medium">Amount</span>
+                                    <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
                                   </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="space-y-4">
-                                <Alert className="bg-green-50 border-green-200">
-                                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                                  <AlertTitle className="text-green-800 font-semibold">Withdrawal Details</AlertTitle>
-                                  <AlertDescription className="text-green-700">
-                                    Please confirm your withdrawal details
-                                  </AlertDescription>
-                                </Alert>
-                                <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
-                                  <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Amount</span>
-                                      <span className="font-semibold">{formatAmount(Number(amount), balance.currency)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Withdrawal Method</span>
-                                      <span className="font-semibold capitalize">{withdrawalMethod}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-500 font-medium">Fee</span>
-                                      <span className="font-semibold">{formatAmount(calculateWithdrawalFee(Number(amount), balance.currency), balance.currency)}</span>
-                                    </div>
-                                    <Separator className="my-2" />
-                                    <div className="flex justify-between text-sm font-semibold">
-                                      <span>Total</span>
-                                      <span>{formatAmount(withdrawalTotal, balance.currency)}</span>
-                                    </div>
-                                    {withdrawalMethod === 'bank' && (
-                                      <>
-                                        <Separator className="my-2" />
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 font-medium">Bank Name</span>
-                                            <span className="font-semibold">{withdrawalToAccount?.bankName}</span>
-                                          </div>
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 font-medium">Account Number</span>
-                                            <span className="font-semibold">{withdrawalToAccount?.accountNumber}</span>
-                                          </div>
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 font-medium">Account Name</span>
-                                            <span className="font-semibold">{withdrawalToAccount?.accountName}</span>
-                                          </div>
-                                        </div>
-                                      </>
-                                    )}
-                                    {withdrawalMethod === 'crypto' && (
-                                      <>
-                                        <Separator className="my-2" />
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 font-medium">Wallet Address</span>
-                                            <span className="font-semibold">{withdrawalToAccount?.walletAddress}</span>
-                                          </div>
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 font-medium">Network</span>
-                                            <span className="font-semibold">{withdrawalToAccount?.network}</span>
-                                          </div>
-                                        </div>
-                                      </>
-                                    )}
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500 font-medium">Fee</span>
+                                    <span className="font-semibold">{formatAmount(calculateWithdrawalFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
+                                  </div>
+                                  <Separator className="my-2" />
+                                  <div className="flex justify-between text-sm font-semibold">
+                                    <span>Net Amount</span>
+                                    <span>{formatAmount(Number(amount) - calculateWithdrawalFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -862,10 +556,7 @@ export default function WalletPage() {
                               variant="outline"
                               onClick={() => {
                                 setShowWithdrawDialog(false)
-                                setWithdrawalStep(1)
                                 setAmount('')
-                                setWithdrawalMethod('')
-                                setWithdrawalToAccount(null)
                               }}
                               className="w-full sm:w-auto bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                             >
@@ -873,9 +564,9 @@ export default function WalletPage() {
                             </Button>
                             <Button
                               onClick={handleWithdrawal}
-                              disabled={isProcessing || !amount || !withdrawalMethod || 
-                                (withdrawalMethod === 'bank' && (!withdrawalToAccount?.bankName || !withdrawalToAccount?.accountNumber || !withdrawalToAccount?.accountName)) ||
-                                (withdrawalMethod === 'crypto' && (!withdrawalToAccount?.walletAddress || !withdrawalToAccount?.network))}
+                              disabled={isProcessing || !amount || 
+                                (selectedCurrency === 'NGN' && parseFloat(amount) < 100) ||
+                                (selectedCurrency === 'USDT' && parseFloat(amount) < 1)}
                               className="w-full sm:w-auto bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] text-white shadow-lg hover:shadow-xl transition-all duration-300"
                             >
                               {isProcessing ? (
@@ -883,8 +574,6 @@ export default function WalletPage() {
                                   <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
                                   Processing...
                                 </>
-                              ) : withdrawalStep === 1 ? (
-                                'Continue'
                               ) : (
                                 'Confirm Withdrawal'
                               )}
@@ -974,7 +663,7 @@ export default function WalletPage() {
                       <div className="flex items-center justify-between sm:justify-end gap-4">
                         <div className="text-right">
                           <p className={cn("font-bold", transaction.amount > 0 ? 'text-green-500' : 'text-red-500')}>
-                            {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
+                            {transaction.amount > 0 ? '+' : ''}{Math.abs(transaction.amount).toFixed(2)}
                           </p>
                         </div>
                         <span
@@ -1187,6 +876,176 @@ export default function WalletPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* FINTAVA Payment Dialog */}
+      <FintavaPaymentDialog
+        open={showFintavaDialog}
+        onOpenChange={setShowFintavaDialog}
+        initialAmount={amount}
+        onSuccess={(virtualWallet) => {
+          toast.success('Virtual wallet created successfully! Complete your payment to credit your account.')
+          setShowFintavaDialog(false)
+          setAmount('')
+          // Refresh wallet balance
+          // Note: The balance will be updated automatically when the webhook processes the payment
+        }}
+      />
+
+      {/* USDT Deposit Dialog */}
+      <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
+        <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
+              Deposit {selectedCurrency}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              {depositStep === 1 ? 'Enter the amount you want to deposit' : 
+               depositStep === 2 ? 'Complete your deposit details' :
+               'Upload proof of payment'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {depositStep === 1 ? (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-gray-700 font-medium">Amount ({selectedCurrency})</Label>
+                  <Input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                    placeholder={`Enter amount in ${selectedCurrency}`}
+                    min="1"
+                    step="0.01"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Minimum deposit amount: $1
+                  </p>
+                </div>
+                
+                <Alert className="bg-blue-50 border-blue-200">
+                  <CurrencyDollarIcon className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-800 font-semibold">Cryptocurrency Deposit</AlertTitle>
+                  <AlertDescription className="text-blue-700">
+                    Transfer USDT to the provided wallet address to fund your account.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : depositStep === 2 ? (
+              <div className="space-y-4">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <CheckCircleIcon className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-800 font-semibold">Deposit Details</AlertTitle>
+                  <AlertDescription className="text-blue-700">
+                    Please send {formatAmount(Number(amount), selectedCurrency)} to the following wallet:
+                  </AlertDescription>
+                </Alert>
+                <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 font-medium">Network</span>
+                      <span className="font-semibold">TRC20</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 font-medium">Wallet Address</span>
+                      <span className="font-semibold">TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 font-medium">Amount</span>
+                      <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 font-medium">Reference</span>
+                      <span className="font-semibold">TRX{Math.random().toString(36).substring(7).toUpperCase()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Alert className="bg-green-50 border-green-200">
+                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                  <AlertTitle className="text-green-800 font-semibold">Proof of Payment</AlertTitle>
+                  <AlertDescription className="text-green-700">
+                    Please provide your payment details and upload proof of payment
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-gray-700 font-medium">Wallet Address Used</Label>
+                    <Input
+                      value={depositFromAccount}
+                      onChange={(e) => setDepositFromAccount(e.target.value)}
+                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                      placeholder="Enter the wallet address you used"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-700 font-medium">Transaction Hash</Label>
+                    <Input
+                      value={depositReference}
+                      onChange={(e) => setDepositReference(e.target.value)}
+                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                      placeholder="Enter your transaction hash"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-700 font-medium">Proof of Payment</Label>
+                    <div className="mt-1">
+                      <Input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={handleFileChange}
+                        className="bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                      />
+                      <p className="mt-1 text-sm text-gray-500">
+                        Upload screenshot or PDF of your payment (max 5MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDepositDialog(false)
+                setDepositStep(1)
+                setAmount('')
+                setDepositProof(null)
+                setDepositReference('')
+                setDepositFromAccount('')
+              }}
+              className="w-full sm:w-auto bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeposit}
+              disabled={isProcessing || !amount || 
+                (depositStep === 3 && (!depositFromAccount || !depositReference || !depositProof))}
+              className="w-full sm:w-auto bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {isProcessing ? (
+                <>
+                  <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : depositStep === 1 ? (
+                'Continue'
+              ) : depositStep === 2 ? (
+                "I've Made the Payment"
+              ) : (
+                'Submit Deposit'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

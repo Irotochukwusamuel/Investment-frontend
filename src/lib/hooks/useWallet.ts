@@ -96,8 +96,6 @@ export interface CreateDepositData {
 export interface CreateWithdrawalData {
   amount: number;
   currency: 'naira' | 'usdt';
-  withdrawalMethod: 'bank_transfer' | 'crypto';
-  accountDetails?: Record<string, any>;
   notes?: string;
 }
 
@@ -200,12 +198,10 @@ export const useCreateWithdrawal = () => {
   
   return useMutation({
     mutationFn: async (data: CreateWithdrawalData) => {
-      const response = await api.post('/transactions', {
-        type: 'withdrawal',
+      const response = await api.post('/withdrawals', {
         amount: data.amount,
         currency: data.currency,
-        description: `Withdrawal via ${data.withdrawalMethod}`,
-        status: 'pending',
+        notes: data.notes,
       });
       return handleApiResponse<Transaction>(response);
     },
@@ -273,6 +269,7 @@ export const useTransactionHistory = (filters?: {
       if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
       
       const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
+     
       const transactions = handleApiResponse<Transaction[]>(response);
       
       return {

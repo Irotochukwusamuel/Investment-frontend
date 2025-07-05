@@ -105,10 +105,11 @@ const getPlanIcon = (planName: string) => {
 
 // Helper function to format currency amounts
 const formatCurrency = (amount: number, currency: 'naira' | 'usdt') => {
+  if (typeof amount !== 'number' || isNaN(amount)) return currency === 'naira' ? '₦0' : '0 USDT';
   if (currency === 'naira') {
     return `₦${amount.toLocaleString()}`;
   }
-  return `${amount} USDT`;
+  return `${amount.toLocaleString()} USDT`;
 };
 
 // Helper function to get status badge color
@@ -140,6 +141,7 @@ export default function InvestmentsPage() {
   const [roiFilter, setRoiFilter] = useState('all')
   const [investmentStatusFilter, setInvestmentStatusFilter] = useState<'all' | 'active' | 'completed'>('active')
   const [searchActive, setSearchActive] = useState('')
+  const [nextPayoutCountdowns, setNextPayoutCountdowns] = useState<Record<string, string>>({});
 
   // Use real API hooks
   const { data: investmentPlans, isLoading: plansLoading } = useInvestmentPlans({ 
@@ -149,6 +151,59 @@ export default function InvestmentsPage() {
   const createInvestment = useCreateInvestment();
 
   const isLoading = plansLoading || investmentsLoading;
+
+  useEffect(() => {
+    if (!myInvestments) return;
+    
+    const timers: NodeJS.Timeout[] = [];
+    const newCountdowns: Record<string, string> = {};
+    
+    myInvestments.forEach((investment, idx) => {
+      const updateCountdown = () => {
+        const now = new Date();
+        
+        // Use nextRoiUpdate instead of nextPayoutDate
+        let nextRoiUpdate = investment.nextRoiUpdate;
+        if (!nextRoiUpdate && investment.startDate) {
+          const startDate = new Date(investment.startDate);
+          nextRoiUpdate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000).toISOString(); // Add 1 day
+        }
+        
+        if (!nextRoiUpdate) {
+          newCountdowns[investment.id] = 'N/A';
+        } else {
+          const next = new Date(nextRoiUpdate);
+          const diff = Math.max(0, next.getTime() - now.getTime());
+          
+          if (diff === 0) {
+            newCountdowns[investment.id] = 'Due now';
+          } else {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            if (hours > 0) {
+              newCountdowns[investment.id] = `${hours}h ${minutes}m`;
+            } else {
+              newCountdowns[investment.id] = `${minutes}m ${seconds}s`;
+            }
+          }
+        }
+        
+        setNextPayoutCountdowns((prev) => ({ ...prev, ...newCountdowns }));
+      };
+      
+      // Initialize immediately
+      updateCountdown();
+      
+      // Set up interval
+      timers[idx] = setInterval(updateCountdown, 1000);
+    });
+    
+    return () => { 
+      timers.forEach(timer => clearInterval(timer)); 
+    };
+  }, [myInvestments]);
 
   const handleInvestment = async () => {
     if (!selectedPlan || !investmentAmount) return
@@ -202,6 +257,22 @@ export default function InvestmentsPage() {
 
   const calculateProjectedEarnings = (amount: number, dailyRoi: number, duration: number) => {
     return (amount * dailyRoi * duration) / 100;
+  };
+
+  // Calculate days remaining dynamically
+  const calculateDaysRemaining = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return 'Ended';
+    } else if (diffDays === 0) {
+      return 'Ends Today';
+    } else {
+      return `${diffDays} days`;
+    }
   };
 
   if (isLoading) {
@@ -417,7 +488,7 @@ export default function InvestmentsPage() {
 
                           <div className="flex items-center justify-between pt-4">
                             <div className="text-sm text-gray-500">
-                              <p>{plan.totalInvestors.toLocaleString()} investors</p>
+                              <p>{typeof plan.totalInvestors === 'number' ? plan.totalInvestors.toLocaleString() : '0'} investors</p>
                               <p>Volume: {formatCurrency(plan.totalVolume, plan.currency)}</p>
                             </div>
                           <Dialog>
@@ -633,11 +704,13 @@ export default function InvestmentsPage() {
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Total Earnings</p>
-                            <p className="font-semibold text-green-600">{formatCurrency(investment.totalEarnings, investment.currency)}</p>
+                            <p className="font-semibold text-green-600">
+                              {formatCurrency((investment.amount ?? 0) + (investment.earnedAmount ?? 0), investment.currency)}
+                            </p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Days Remaining</p>
-                            <p className="font-semibold">{investment.daysRemaining} days</p>
+                            <p className="font-semibold">{calculateDaysRemaining(investment.endDate)}</p>
                           </div>
                         </div>
 
@@ -661,7 +734,7 @@ export default function InvestmentsPage() {
                             </div>
                             <div>
                               <p className="text-gray-500">Next Payout</p>
-                              <p className="font-medium">{investment.nextPayoutDate ? new Date(investment.nextPayoutDate).toLocaleDateString() : 'N/A'}</p>
+                              <p className="font-medium">{investment.nextRoiUpdate ? nextPayoutCountdowns[investment.id] : 'N/A'}</p>
                           </div>
                             <div>
                               <p className="text-gray-500">Auto Reinvest</p>
@@ -669,19 +742,30 @@ export default function InvestmentsPage() {
                             </div>
                           </div>
 
-                          {investment.payoutHistory && investment.payoutHistory.length > 0 && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Recent Payouts</h4>
-                              <div className="space-y-2 max-h-32 overflow-y-auto">
-                                {investment.payoutHistory.slice(0, 3).map((payout, index) => (
-                                  <div key={index} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                                    <span>{new Date(payout.date).toLocaleDateString()}</span>
-                                    <span className="font-medium text-green-600">{formatCurrency(payout.amount, investment.currency)}</span>
-                                  </div>
-                                ))}
-                            </div>
-                            </div>
-                          )}
+                
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 p-4 bg-white/70 dark:bg-[#232526]/70 border border-gray-200 dark:border-gray-700 rounded-lg">
+                          <div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">Earned Amount</p>
+                            <p className="font-semibold">{formatCurrency(investment.earnedAmount ?? 0, investment.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">Expected Return</p>
+                            <p className="font-semibold">{formatCurrency(investment.expectedReturn ?? 0, investment.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">Welcome Bonus</p>
+                            <p className="font-semibold">{formatCurrency(investment.welcomeBonus ?? 0, investment.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">Referral Bonus</p>
+                            <p className="font-semibold">{formatCurrency(investment.referralBonus ?? 0, investment.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-700 dark:text-gray-200">Last ROI Update</p>
+                            <p className="font-semibold">{investment.lastRoiUpdate ? new Date(investment.lastRoiUpdate).toLocaleDateString() : 'N/A'}</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

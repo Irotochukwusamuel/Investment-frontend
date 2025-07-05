@@ -55,6 +55,7 @@ export default function DashboardPage() {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   })
+  
   const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
   const router = useRouter()

@@ -8,6 +8,9 @@ import {
   CreditCardIcon,
   WalletIcon,
   PlusIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { motion } from 'framer-motion'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -30,6 +34,15 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUser, useUpdateProfile } from '@/lib/hooks/useAuth'
+import { 
+  useBankList, 
+  useVerifyAccount, 
+  useActiveBankDetails, 
+  useCreateBankDetails,
+  Bank,
+  BankDetails as BankDetailsType,
+  AccountVerification
+} from '@/lib/hooks/useBank'
 
 interface NotificationSetting {
   id: string
@@ -59,9 +72,94 @@ const notificationSettings: NotificationSetting[] = [
   },
 ]
 
+// Custom SearchableSelect component
+interface SearchableSelectProps {
+  options: Bank[]
+  value: Bank | null
+  onValueChange: (bank: Bank | null) => void
+  placeholder: string
+  searchPlaceholder: string
+  disabled?: boolean
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  searchPlaceholder,
+  disabled = false
+}) => {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  
+  const filteredOptions = options.filter(option =>
+    option.name.toLowerCase().includes(search.toLowerCase())
+  )
+  
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+          disabled={disabled}
+        >
+          {value ? value.name : placeholder}
+          <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm">
+        <div className="flex items-center border-b px-3">
+          <MagnifyingGlassIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border-0 bg-transparent p-2 focus-visible:ring-0"
+          />
+        </div>
+        <ScrollArea className="max-h-[300px]">
+          <div className="p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                No bank found.
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.code}
+                  className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  onClick={() => {
+                    onValueChange(option)
+                    setOpen(false)
+                    setSearch('')
+                  }}
+                >
+                  {option.name}
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export default function SettingsPage() {
   const { data: user, isLoading: userLoading } = useUser()
   const updateProfile = useUpdateProfile()
+  
+  // Bank-related hooks
+  const { data: banks, isLoading: banksLoading } = useBankList()
+  const { data: activeBankDetails, isLoading: bankDetailsLoading } = useActiveBankDetails()
+
+  console.log({activeBankDetails})
+  const verifyAccount = useVerifyAccount()
+  const createBankDetails = useCreateBankDetails()
   
   const [notifications, setNotifications] = useState(notificationSettings)
   const [language, setLanguage] = useState('en')
@@ -70,10 +168,21 @@ export default function SettingsPage() {
   const [showBankDialog, setShowBankDialog] = useState(false)
   const [showCryptoDialog, setShowCryptoDialog] = useState(false)
   const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false)
+  
+  // Bank details form state
+  const [bankForm, setBankForm] = useState({
+    selectedBank: null as Bank | null,
+    accountNumber: '',
+    accountName: '',
+    isVerifying: false,
+    isVerified: false,
+    verificationData: null as AccountVerification | null,
+  })
+  
   const [bankDetails, setBankDetails] = useState({
-    accountNumber: '****1234',
-    bankName: 'Access Bank',
-    accountName: 'John Doe',
+    accountNumber: '',
+    bankName: '',
+    accountName: '',
   })
   const [cryptoDetails, setCryptoDetails] = useState({
     usdt: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
@@ -101,6 +210,49 @@ export default function SettingsPage() {
     }
   }, [user])
 
+  // Update bank details when active bank details load
+  useEffect(() => {
+    if (activeBankDetails) {
+      setBankDetails({
+        accountNumber: `****${activeBankDetails.accountNumber.slice(-4)}`,
+        bankName: activeBankDetails.bankName,
+        accountName: activeBankDetails.accountName,
+      })
+    }
+  }, [activeBankDetails])
+
+  // Reset bank form when dialog opens
+  useEffect(() => {
+    if (showBankDialog) {
+      setBankForm({
+        selectedBank: null,
+        accountNumber: '',
+        accountName: '',
+        isVerifying: false,
+        isVerified: false,
+        verificationData: null,
+      })
+      
+      // Pre-populate if there's existing data
+      if (activeBankDetails) {
+        const existingBank = banks?.find(bank => bank.code === activeBankDetails.bankCode)
+        setBankForm(prev => ({
+          ...prev,
+          selectedBank: existingBank || null,
+          accountNumber: activeBankDetails.accountNumber,
+          accountName: activeBankDetails.accountName,
+          isVerified: true,
+          verificationData: {
+            accountNumber: activeBankDetails.accountNumber,
+            accountName: activeBankDetails.accountName,
+            bankCode: activeBankDetails.bankCode,
+            bankName: activeBankDetails.bankName,
+          },
+        }))
+      }
+    }
+  }, [showBankDialog, activeBankDetails, banks])
+
   const isLoading = userLoading
 
   const handleNotificationToggle = (id: string) => {
@@ -122,6 +274,60 @@ export default function SettingsPage() {
   const handleBankDetailsUpdate = () => {
     toast.success('Bank details updated successfully')
     setShowBankDialog(false)
+  }
+
+  // Handle bank verification
+  const handleVerifyAccount = async () => {
+    if (!bankForm.selectedBank || !bankForm.accountNumber || bankForm.accountNumber.length !== 10) {
+      toast.error('Please select a bank and enter a valid 10-digit account number')
+      return
+    }
+
+    setBankForm(prev => ({ ...prev, isVerifying: true }))
+    try {
+      const result = await verifyAccount.mutateAsync({
+        accountNumber: bankForm.accountNumber,
+        sortCode: bankForm.selectedBank.code,
+      })
+      
+      setBankForm(prev => ({
+        ...prev,
+        isVerifying: false,
+        isVerified: true,
+        accountName: result.accountName,
+        verificationData: {
+          ...result,
+          bankName: bankForm.selectedBank!.name,
+        },
+      }))
+      
+      toast.success('Account verified successfully!')
+    } catch (error) {
+      setBankForm(prev => ({ ...prev, isVerifying: false }))
+    }
+  }
+
+  // Handle saving bank details
+  const handleSaveBankDetails = async () => {
+    if (!bankForm.isVerified || !bankForm.verificationData || !bankForm.selectedBank) {
+      toast.error('Please verify your account details first')
+      return
+    }
+
+    try {
+      await createBankDetails.mutateAsync({
+        bankName: bankForm.selectedBank.name,
+        bankCode: bankForm.selectedBank.code,
+        sortCode: bankForm.selectedBank.code,
+        accountNumber: bankForm.accountNumber,
+        accountName: bankForm.verificationData.accountName,
+      })
+      
+      setShowBankDialog(false)
+      // The success toast is handled by the hook
+    } catch (error) {
+      // Error toast is handled by the hook
+    }
   }
 
   const handleCryptoDetailsUpdate = () => {
@@ -384,28 +590,67 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-6">
-                    <motion.div
-                      whileHover={{ scale: 1.01 }}
-                      className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-blue-500 transition-all duration-300"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
-                          <CreditCardIcon className="h-5 w-5" />
+                    {bankDetailsLoading ? (
+                      <div className="flex items-center justify-between rounded-lg border-2 p-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
+                            <CreditCardIcon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mt-1"></div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-base sm:text-lg">{bankDetails.accountNumber}</p>
-                          <p className="text-sm text-gray-500">{bankDetails.bankName}</p>
-                        </div>
+                        <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setShowBankDialog(true)}
-                        className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                    ) : activeBankDetails ? (
+                      <motion.div
+                        whileHover={{ scale: 1.01 }}
+                        className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-blue-500 transition-all duration-300"
                       >
-                        Edit
-                      </Button>
-                    </motion.div>
+                        <div className="flex items-center space-x-4">
+                          <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
+                            <CreditCardIcon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-base sm:text-lg">****{activeBankDetails?.accountNumber.slice(-4)}</p>
+                            <p className="text-sm text-gray-500">{activeBankDetails?.bankName}</p>
+                            <p className="text-sm text-gray-500">{activeBankDetails?.accountName}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setShowBankDialog(true)}
+                          className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                        >
+                          Edit
+                        </Button>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        whileHover={{ scale: 1.01 }}
+                        className="flex items-center justify-between rounded-lg border-2 border-dashed p-4 hover:border-blue-500 transition-all duration-300"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="rounded-full bg-gray-200 p-2">
+                            <CreditCardIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-base sm:text-lg text-gray-500">No Bank Account Added</p>
+                            <p className="text-sm text-gray-400">Add your bank account details</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setShowBankDialog(true)}
+                          className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                        >
+                          Add
+                        </Button>
+                      </motion.div>
+                    )}
                     <motion.div
                       whileHover={{ scale: 1.01 }}
                       className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-purple-500 transition-all duration-300"
@@ -596,28 +841,67 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="p-4">
                 <div className="space-y-4">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-blue-500 transition-all duration-300"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
-                        <CreditCardIcon className="h-5 w-5" />
+                  {bankDetailsLoading ? (
+                    <div className="flex items-center justify-between rounded-lg border-2 p-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
+                          <CreditCardIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+                          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mt-1"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-base sm:text-lg">{bankDetails.accountNumber}</p>
-                        <p className="text-sm text-gray-500">{bankDetails.bankName}</p>
-                      </div>
+                      <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowBankDialog(true)}
-                      className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                  ) : activeBankDetails ? (
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-blue-500 transition-all duration-300"
                     >
-                      Edit
-                    </Button>
-                  </motion.div>
+                      <div className="flex items-center space-x-4">
+                        <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white shadow-lg">
+                          <CreditCardIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-base sm:text-lg">****{activeBankDetails?.accountNumber.slice(-4)}</p>
+                          <p className="text-sm text-gray-500">{activeBankDetails?.bankName}</p>
+                          <p className="text-sm text-gray-500">{activeBankDetails?.accountName}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowBankDialog(true)}
+                        className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                      >
+                        Edit
+                      </Button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="flex items-center justify-between rounded-lg border-2 border-dashed p-4 hover:border-blue-500 transition-all duration-300"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="rounded-full bg-gray-200 p-2">
+                          <CreditCardIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-base sm:text-lg text-gray-500">No Bank Account Added</p>
+                          <p className="text-sm text-gray-400">Add your bank account details</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowBankDialog(true)}
+                        className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm hover:bg-gray-100 transition-colors"
+                      >
+                        Add
+                      </Button>
+                    </motion.div>
+                  )}
                   <motion.div
                     whileHover={{ scale: 1.01 }}
                     className="flex items-center justify-between rounded-lg border-2 p-4 hover:border-purple-500 transition-all duration-300"
@@ -674,39 +958,84 @@ export default function SettingsPage() {
         <DialogContent className="sm:max-w-[500px] w-[95vw] bg-white/95 dark:bg-[#232526]/95">
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Edit Bank Details
+              {activeBankDetails ? 'Edit Bank Details' : 'Add Bank Details'}
             </DialogTitle>
             <DialogDescription className="text-base sm:text-lg">
-              Update your bank account information
+              {activeBankDetails ? 'Update your bank account information' : 'Add your bank account information'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="bank-name">Bank Name</Label>
-              <Input 
-                id="bank-name" 
-                value={bankDetails.bankName}
-                onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+              <Label htmlFor="bank-select">Select Bank</Label>
+              <SearchableSelect
+                options={banks || []}
+                value={bankForm.selectedBank}
+                onValueChange={(bank) => {
+                  setBankForm(prev => ({ 
+                    ...prev, 
+                    selectedBank: bank,
+                    isVerified: false,
+                    verificationData: null,
+                    accountName: '',
+                  }))
+                }}
+                placeholder={banksLoading ? "Loading banks..." : "Select your bank"}
+                searchPlaceholder="Search banks..."
+                disabled={banksLoading}
               />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="account-number">Account Number</Label>
-              <Input 
-                id="account-number" 
-                value={bankDetails.accountNumber}
-                onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
-                className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
-              />
+              <div className="flex gap-2">
+                <Input 
+                  id="account-number" 
+                  value={bankForm.accountNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 10)
+                    setBankForm(prev => ({ 
+                      ...prev, 
+                      accountNumber: value,
+                      isVerified: false,
+                      verificationData: null,
+                      accountName: '',
+                    }))
+                  }}
+                  placeholder="Enter 10-digit account number"
+                  className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+                  maxLength={10}
+                />
+                <Button
+                  type="button"
+                  onClick={handleVerifyAccount}
+                  disabled={!bankForm.selectedBank || bankForm.accountNumber.length !== 10 || bankForm.isVerifying}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  {bankForm.isVerifying ? 'Verifying...' : 'Verify'}
+                </Button>
+              </div>
+              <p className="text-sm text-gray-500">
+                {bankForm.accountNumber.length}/10 digits
+              </p>
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="account-name">Account Name</Label>
               <Input 
                 id="account-name" 
-                value={bankDetails.accountName}
-                onChange={(e) => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-                className="bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+                value={bankForm.accountName}
+                readOnly
+                placeholder={bankForm.isVerified ? "" : "Account name will appear after verification"}
+                className={`bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm ${
+                  bankForm.isVerified ? 'border-green-500 bg-green-50' : ''
+                }`}
               />
+              {bankForm.isVerified && (
+                <p className="text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Account verified successfully
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -718,10 +1047,11 @@ export default function SettingsPage() {
               Cancel
             </Button>
             <Button
-              onClick={handleBankDetailsUpdate}
+              onClick={handleSaveBankDetails}
+              disabled={!bankForm.isVerified || createBankDetails.isPending}
               className="bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 dark:bg-[#232526]"
             >
-              Save Changes
+              {createBankDetails.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

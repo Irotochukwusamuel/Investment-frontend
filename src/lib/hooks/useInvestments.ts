@@ -56,41 +56,21 @@ export interface Investment {
   welcomeBonus: number;
   referralBonus: number;
   payoutHistory: Array<{
-    date: string;
+    id: string;
     amount: number;
-    type: 'daily' | 'bonus' | 'referral' | 'completion';
+    currency: 'naira' | 'usdt';
+    type: 'roi';
     status: 'pending' | 'completed' | 'failed';
-    transactionId?: string;
+    createdAt: string;
+    description: string;
+    reference: string;
   }>;
   lastPayoutDate?: string;
   nextPayoutDate?: string;
-  daysActive: number;
-  daysRemaining: number;
-  totalPayoutCount: number;
-  successfulPayoutCount: number;
-  failedPayoutCount: number;
-  averageDailyEarnings: number;
-  roiEfficiency: number;
-  isCompounding: boolean;
-  compoundingAmount: number;
-  compoundingCount: number;
-  earlyWithdrawalFee: number;
-  managementFee: number;
-  performanceFee: number;
-  totalFees: number;
-  netEarnings: number;
-  netRoi: number;
-  notes: string[];
-  cancelledAt?: string;
-  cancelledBy?: string;
-  cancellationReason?: string;
-  pausedAt?: string;
-  pausedBy?: string;
-  pauseReason?: string;
-  resumedAt?: string;
-  resumedBy?: string;
-  createdAt: string;
-  updatedAt: string;
+  nextRoiUpdate?: string;
+  earnedAmount: number;
+  expectedReturn: number;
+  lastRoiUpdate?: string;
 }
 
 export interface CreateInvestmentData {
