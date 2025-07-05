@@ -137,13 +137,12 @@ export const useWalletBalance = () => {
   return useQuery({
     queryKey: ['wallet', 'balance', user?.id],
     queryFn: async () => {
-      // Get current user's wallets
+      // Get current user's wallet
       const response = await api.get(`/wallets?userId=${user?.id}`);
       const wallets = handleApiResponse<any[]>(response);
       
-      // Transform wallet data to match frontend interface
+      // Get the main wallet (should be the only wallet now)
       const mainWallet = wallets.find(w => w.type === 'main') || { nairaBalance: 0, usdtBalance: 0 };
-      const profitWallet = wallets.find(w => w.type === 'profit') || { nairaBalance: 0, usdtBalance: 0 };
       
       return {
         walletBalances: {
@@ -151,20 +150,20 @@ export const useWalletBalance = () => {
           usdt: mainWallet.usdtBalance || 0,
         },
         profitBalances: {
-          naira: profitWallet.nairaBalance || 0,
-          usdt: profitWallet.usdtBalance || 0,
+          naira: 0, // No separate profit wallet
+          usdt: 0,
         },
         lockedBalances: {
           naira: 0,
           usdt: 0,
         },
         totalBalance: {
-          naira: (mainWallet.nairaBalance || 0) + (profitWallet.nairaBalance || 0),
-          usdt: (mainWallet.usdtBalance || 0) + (profitWallet.usdtBalance || 0),
+          naira: mainWallet.nairaBalance || 0,
+          usdt: mainWallet.usdtBalance || 0,
         },
         totalInvested: mainWallet.totalInvestments || 0,
-        totalEarnings: profitWallet.nairaBalance || 0,
-        referralEarnings: 0,
+        totalEarnings: mainWallet.totalEarnings || 0,
+        referralEarnings: mainWallet.totalReferralEarnings || 0,
       };
     },
     enabled: !!user?.id, // Only run query when user is available
