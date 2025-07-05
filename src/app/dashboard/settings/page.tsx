@@ -727,19 +727,19 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="Enter your first name" className="bg-white/50 backdrop-blur-sm" />
+                    <Input id="firstName" placeholder="Enter your first name" className="bg-white/50 backdrop-blur-sm" value={profileForm.firstName} onChange={e => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Enter your last name" className="bg-white/50 backdrop-blur-sm" />
+                    <Input id="lastName" placeholder="Enter your last name" className="bg-white/50 backdrop-blur-sm" value={profileForm.lastName} onChange={e => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" placeholder="Enter your email" className="bg-white/50 backdrop-blur-sm" />
+                    <Input id="email" type="email" placeholder="Enter your email" className="bg-white/50 backdrop-blur-sm" value={profileForm.email} onChange={e => setProfileForm(prev => ({ ...prev, email: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phoneNumber">Phone Number</Label>
-                    <Input id="phoneNumber" type="tel" placeholder="Enter your phone number" className="bg-white/50 backdrop-blur-sm" />
+                    <Input id="phoneNumber" type="tel" placeholder="Enter your phone number" className="bg-white/50 backdrop-blur-sm" value={profileForm.phoneNumber} onChange={e => setProfileForm(prev => ({ ...prev, phoneNumber: e.target.value }))} />
                   </div>
                 </div>
               </CardContent>
