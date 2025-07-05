@@ -121,8 +121,32 @@ export const endpoints = {
     transfer: (userId: string) => `/wallets/${userId}/transfer`,
   },
   
+  // Admin endpoints
+  admin: {
+    notices: '/notices',
+    users: '/admin/users',
+    investments: '/admin/investments',
+    withdrawals: '/admin/withdrawals',
+    plans: '/admin/plans',
+    wallet: '/admin/wallets',
+    settings: '/admin/settings',
+    stats: '/admin/dashboard/stats',
+    dashboard: '/admin/dashboard',
+    bulkTriggerPayout: '/admin/withdrawals/bulk-trigger-payout',
+  },
+  
+  // Notices (public)
+  notices: {
+    active: '/notices/active',
+  },
+  
   // Health
   health: '/health',
+  
+  // Settings (public)
+  settings: {
+    withdrawal: '/admin/withdrawals/settings',
+  },
 };
 
 // API response types

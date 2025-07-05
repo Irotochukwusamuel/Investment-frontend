@@ -47,8 +47,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Inter, Poppins } from 'next/font/google'
-import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal } from '@/lib/hooks/useWallet'
+import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings } from '@/lib/hooks/useWallet'
 import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
+import { endpoints, api } from '@/lib/api'
 
 const inter = Inter({ subsets: ['latin'] })
 const poppins = Poppins({ 
@@ -116,8 +117,16 @@ export default function WalletPage() {
   const createDeposit = useCreateDeposit()
   const createWithdrawal = useCreateWithdrawal()
 
+  // Withdrawal settings hook
+  const { data: withdrawalSettings, isLoading: settingsLoading } = useWithdrawalSettings();
+
   const isLoading = walletLoading || transactionsLoading
   const transactions = transactionData?.transactions || []
+
+  // Get withdrawal limits and fees from settings
+  const minWithdrawal = withdrawalSettings?.minWithdrawalAmount ?? 100
+  const maxWithdrawal = withdrawalSettings?.maxWithdrawalAmount ?? 1000000
+  const withdrawalFee = withdrawalSettings?.withdrawalFee ?? 2.5
 
   // Create wallet balances array from real data
   const walletBalances = [
@@ -274,15 +283,8 @@ export default function WalletPage() {
   }
 
   const calculateWithdrawalFee = (amount: number, currency: string) => {
-    // Different fee structures for different currencies
-    switch (currency) {
-      case 'NGN':
-        return amount * 0.01 // 1% fee for NGN
-      case 'USDT':
-        return amount * 0.02 // 2% fee for USDT
-      default:
-        return 0
-    }
+    // Use withdrawal fee percentage from backend settings
+    return (amount * withdrawalFee) / 100
   }
 
   const handleWithdrawal = async () => {
@@ -291,15 +293,15 @@ export default function WalletPage() {
       return
     }
 
-    // Validate minimum amount for NGN
-    if (selectedCurrency === 'NGN' && parseFloat(amount) < 100) {
-      toast.error('Minimum withdrawal amount for NGN is ₦100')
+    // Validate minimum amount using backend settings
+    if (parseFloat(amount) < minWithdrawal) {
+      toast.error(`Minimum withdrawal amount is ${formatAmount(minWithdrawal, selectedCurrency)}`)
       return
     }
 
-    // Validate minimum amount for USDT
-    if (selectedCurrency === 'USDT' && parseFloat(amount) < 1) {
-      toast.error('Minimum withdrawal amount for USDT is $1')
+    // Validate maximum amount
+    if (parseFloat(amount) > maxWithdrawal) {
+      toast.error(`Maximum withdrawal amount is ${formatAmount(maxWithdrawal, selectedCurrency)}`)
       return
     }
 
@@ -321,7 +323,8 @@ export default function WalletPage() {
       setShowWithdrawDialog(false)
       setAmount('')
     } catch (error) {
-      toast.error('Failed to create withdrawal request')
+      console.log({error})
+      toast.error(error?.response?.data?.message ?? 'Failed to create withdrawal request')
     } finally {
       setIsProcessing(false)
     }
@@ -518,7 +521,13 @@ export default function WalletPage() {
                                 Available: {formatAmount(getAvailableBalance(selectedCurrency), selectedCurrency)}
                               </p>
                               <p className="mt-1 text-sm text-gray-500">
-                                Minimum withdrawal: {selectedCurrency === 'NGN' ? '₦100' : '$1'}
+                                Minimum withdrawal: {settingsLoading ? 'Loading...' : formatAmount(minWithdrawal, selectedCurrency)}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Maximum withdrawal: {settingsLoading ? 'Loading...' : formatAmount(maxWithdrawal, selectedCurrency)}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Fee: {settingsLoading ? 'Loading...' : `${withdrawalFee}%`}
                               </p>
                             </div>
 
@@ -565,8 +574,8 @@ export default function WalletPage() {
                             <Button
                               onClick={handleWithdrawal}
                               disabled={isProcessing || !amount || 
-                                (selectedCurrency === 'NGN' && parseFloat(amount) < 100) ||
-                                (selectedCurrency === 'USDT' && parseFloat(amount) < 1)}
+                                parseFloat(amount) < minWithdrawal ||
+                                parseFloat(amount) > maxWithdrawal}
                               className="w-full sm:w-auto bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] text-white shadow-lg hover:shadow-xl transition-all duration-300"
                             >
                               {isProcessing ? (

@@ -31,6 +31,9 @@ interface WithdrawalDialogProps {
   onSuccess?: () => void;
   currency?: 'naira' | 'usdt';
   initialAmount?: string;
+  minWithdrawal?: number;
+  maxWithdrawal?: number;
+  withdrawalFee?: number; // Fee percentage from backend settings
 }
 
 export function WithdrawalDialog({ 
@@ -38,11 +41,15 @@ export function WithdrawalDialog({
   onOpenChange, 
   onSuccess, 
   currency = 'naira', 
-  initialAmount 
+  initialAmount,
+  minWithdrawal = 0,
+  maxWithdrawal = 1000000,
+  withdrawalFee = 2.5, // Default 2.5% fee
 }: WithdrawalDialogProps) {
   const [step, setStep] = useState<'amount' | 'confirm' | 'success'>('amount');
   const [amount, setAmount] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   const { data: walletBalance, isLoading: walletLoading } = useWalletBalance();
   const { data: bankDetails, isLoading: bankLoading } = useActiveBankDetails();
@@ -59,15 +66,9 @@ export function WithdrawalDialog({
     ? walletBalance?.totalBalance?.naira || 0
     : walletBalance?.totalBalance?.usdt || 0;
 
-  const minWithdrawal = currency === 'naira' ? 2000 : 10; // ₦2,000 or $10
-  const maxWithdrawal = availableBalance;
-
+  // Update fee calculation to use backend settings
   const calculateFee = (amount: number) => {
-    if (currency === 'naira') {
-      return amount > 50000 ? 100 : 50; // ₦100 for amounts > ₦50,000, else ₦50
-    } else {
-      return amount > 100 ? 5 : 2; // $5 for amounts > $100, else $2
-    }
+    return (amount * withdrawalFee) / 100; // Calculate fee as percentage
   };
 
   const fee = amount ? calculateFee(parseFloat(amount)) : 0;
@@ -82,21 +83,22 @@ export function WithdrawalDialog({
   };
 
   const handleAmountSubmit = () => {
-    if (!amount || parseFloat(amount) < minWithdrawal) {
+    const amt = parseFloat(amount);
+    if (!amount || isNaN(amt) || amt < minWithdrawal) {
+      setAmountError(`Please enter a valid amount (minimum ${formatCurrency(minWithdrawal)})`);
       toast.error(`Please enter a valid amount (minimum ${formatCurrency(minWithdrawal)})`);
       return;
     }
-
-    if (parseFloat(amount) > maxWithdrawal) {
-      toast.error(`Insufficient balance. Available: ${formatCurrency(maxWithdrawal)}`);
+    if (amt > maxWithdrawal) {
+      setAmountError(`Amount exceeds your available balance or the maximum allowed (${formatCurrency(maxWithdrawal)})`);
+      toast.error(`Amount exceeds your available balance or the maximum allowed (${formatCurrency(maxWithdrawal)})`);
       return;
     }
-
+    setAmountError(null);
     if (!bankDetails) {
       toast.error('No bank details found. Please add your bank details in Settings first.');
       return;
     }
-
     setStep('confirm');
   };
 
@@ -173,7 +175,7 @@ export function WithdrawalDialog({
                 <Input
                   id="amount"
                   type="number"
-                  placeholder={`Enter amount (minimum ${formatCurrency(minWithdrawal)})`}
+                  placeholder={`Enter amount (min ${formatCurrency(minWithdrawal)}, max ${formatCurrency(maxWithdrawal)})`}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   min={minWithdrawal}
@@ -184,7 +186,9 @@ export function WithdrawalDialog({
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Available: {formatCurrency(availableBalance)}</span>
                   <span>Min: {formatCurrency(minWithdrawal)}</span>
+                  <span>Max: {formatCurrency(maxWithdrawal)}</span>
                 </div>
+                {amountError && <div className="text-red-600 text-sm mt-1">{amountError}</div>}
               </div>
 
               {amount && parseFloat(amount) >= minWithdrawal && (

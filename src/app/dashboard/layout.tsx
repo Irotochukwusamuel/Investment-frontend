@@ -173,7 +173,7 @@ export default function DashboardLayout({
                   return (
                     <Link
                       key={item.name}
-                      href={item.href}
+                      href={item.name === 'Settings' ? '/dashboard/settings' : item.href}
                       className={cn(
                         "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                         isActive
@@ -197,6 +197,24 @@ export default function DashboardLayout({
                     </Link>
                   )
                 })}
+                {user?.role === 'admin' && (
+                  <Link
+                    key="Admin"
+                    href="/dashboard/admin"
+                    className={cn(
+                      "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                      pathname === '/dashboard/admin'
+                        ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
+                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                    )}
+                  >
+                    <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' ? "text-white" : "text-gray-400 group-hover:text-white")} />
+                    Admin
+                    {pathname === '/dashboard/admin' && (
+                      <motion.div layoutId="activeNav" className="absolute left-0 w-1 h-8 bg-white rounded-r-full" />
+                    )}
+                  </Link>
+                )}
               </nav>
             </motion.div>
           </motion.div>
@@ -242,6 +260,24 @@ export default function DashboardLayout({
                 </Link>
               )
             })}
+            {user?.role === 'admin' && (
+              <Link
+                key="Admin"
+                href="/dashboard/admin"
+                className={cn(
+                  "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                  pathname === '/dashboard/admin'
+                    ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
+                    : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                )}
+              >
+                <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' ? "text-white" : "text-gray-400 group-hover:text-white")} />
+                Admin
+                {pathname === '/dashboard/admin' && (
+                  <motion.div layoutId="activeNav" className="absolute left-0 w-1 h-8 bg-white rounded-r-full" />
+                )}
+              </Link>
+            )}
           </nav>
         </div>
       </div>

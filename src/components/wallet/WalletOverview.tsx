@@ -80,8 +80,7 @@ export function WalletOverview() {
     try {
       await createWithdrawal.mutateAsync({
         amount: parseFloat(withdrawalData.amount),
-        currency: withdrawalData.currency as 'naira' | 'usdt',
-        withdrawalMethod: withdrawalData.withdrawalMethod as 'bank_transfer' | 'crypto'
+        currency: withdrawalData.currency as 'naira' | 'usdt'
       });
       
       toast.success('Withdrawal request created successfully');

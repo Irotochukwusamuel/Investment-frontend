@@ -12,6 +12,10 @@ import {
   ChartPieIcon,
   FunnelIcon,
   ArrowsUpDownIcon,
+  BellIcon,
+  Cog6ToothIcon,
+  UserIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -29,26 +33,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useWalletBalance, useTransactionHistory } from '@/lib/hooks/useWallet'
 import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments'
+import { useUser } from '@/lib/hooks/useAuth'
+import dynamic from 'next/dynamic'
 
-const stats = [
-  {
-    name: 'Total Balance',
-    value: '24,500.00 USDT',
-    change: '+12.5%',
-    changeType: 'increase',
-    description: 'Your total investment balance',
-  },
-  {
-    name: 'Daily ROI',
-    value: '245.00 USDT',
-    change: '+2.5%',
-    changeType: 'increase',
-    description: 'Today&apos;s return on investment',
-  },
-  // ... rest of the stats ...
-]
+// Import admin components with dynamic loading
+const NoticeBoardComponent = dynamic(() => import('@/components/admin/NoticeBoardComponent'), { ssr: false });
+const WalletManagementComponent = dynamic(() => import('@/components/admin/WalletManagementComponent'), { ssr: false });
+const ROIManagementComponent = dynamic(() => import('@/components/admin/ROIManagementComponent'), { ssr: false });
+const InvestmentPlansComponent = dynamic(() => import('@/components/admin/InvestmentPlansComponent'), { ssr: false });
+const InvestmentsComponent = dynamic(() => import('@/components/admin/InvestmentsComponent'), { ssr: false });
+const WithdrawalsComponent = dynamic(() => import('@/components/admin/WithdrawalsComponent'), { ssr: false });
+const UserManagementComponent = dynamic(() => import('@/components/admin/UserManagementComponent'), { ssr: false });
+const SettingsComponent = dynamic(() => import('@/components/admin/SettingsComponent'), { ssr: false });
+
+// Import notice display component
+const NoticeDisplay = dynamic(() => import('@/components/NoticeDisplay'), { ssr: false });
 
 export default function DashboardPage() {
+  const { data: user, isLoading: userLoading } = useUser();
   const { data: walletBalance, isLoading: walletLoading } = useWalletBalance()
   const { data: transactionData, isLoading: transactionsLoading } = useTransactionHistory({
     limit: 20,
@@ -68,7 +70,8 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState('date')
   const [sortOrder, setSortOrder] = useState('desc')
 
-  const isLoading = walletLoading || transactionsLoading || investmentsLoading || statsLoading
+  const isLoading = userLoading || walletLoading || transactionsLoading || investmentsLoading || statsLoading
+  const isAdmin = user?.role === 'admin'
 
   // Helper to format currency
   const formatCurrency = (amount: number, currency: 'naira' | 'usdt') => {
@@ -183,16 +186,24 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
+      {/* Notice Display */}
+      <NoticeDisplay />
+
       {/* Mobile Stats View */}
       <div className="md:hidden">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-4`}>
             <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff5858] data-[state=active]:via-[#ff7e5f] data-[state=active]:to-[#ff9966] data-[state=active]:text-white">
               Overview
             </TabsTrigger>
             <TabsTrigger value="portfolio" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff5858] data-[state=active]:via-[#ff7e5f] data-[state=active]:to-[#ff9966] data-[state=active]:text-white">
               Portfolio
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#ff5858] data-[state=active]:via-[#ff7e5f] data-[state=active]:to-[#ff9966] data-[state=active]:text-white">
+                Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview" className="mt-0">
@@ -307,14 +318,16 @@ export default function DashboardPage() {
               </Card>
             </div>
           </TabsContent>
+          
+      
         </Tabs>
       </div>
 
       {/* Desktop Stats Grid */}
-      <div className="hidden md:grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`hidden md:grid gap-6 ${isAdmin ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2 lg:grid-cols-4'}`}>
         {isLoading ? (
           <>
-            {[1, 2, 3, 4].map((i) => (
+            {Array.from({ length: isAdmin ? 5 : 4 }, (_, i) => (
               <Card key={i} className="overflow-hidden">
                 <CardHeader className="border-b bg-gray-50/50">
                   <Skeleton className="h-8 w-3/4" />
@@ -469,6 +482,8 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </motion.div>
+            
+      
           </>
         )}
       </div>

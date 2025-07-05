@@ -293,4 +293,21 @@ export const useWalletStats = () => {
       return handleApiResponse<WalletStats>(response);
     },
   });
+};
+
+// Withdrawal settings hook
+export const useWithdrawalSettings = () => {
+  return useQuery({
+    queryKey: ['settings', 'withdrawal'],
+    queryFn: async () => {
+      const response = await api.get(endpoints.settings.withdrawal);
+      // If backend wraps in { data }, unwrap, else return as is
+      if (response.data && response.data.data) {
+        return response.data.data;
+      }
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 }; 
