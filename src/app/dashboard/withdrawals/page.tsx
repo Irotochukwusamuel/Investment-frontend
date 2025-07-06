@@ -141,9 +141,17 @@ export default function WithdrawalsPage() {
       >
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-            Withdrawals
+            ROI Withdrawals
           </h1>
-          <p className="text-gray-500">Withdraw your earnings</p>
+          <p className="text-gray-500">Withdraw your investment earnings</p>
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 font-medium">Withdrawal Policy:</p>
+            <ul className="text-xs text-blue-700 mt-1 space-y-1">
+              <li>• Only ROI earnings can be withdrawn, not deposited amounts</li>
+              <li>• You must have active investments to withdraw</li>
+              <li>• Withdrawal fee applies to all transactions</li>
+            </ul>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <motion.div

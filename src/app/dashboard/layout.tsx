@@ -21,6 +21,7 @@ import {
   UserIcon,
   SunIcon,
   MoonIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,7 @@ const navigation = [
   { name: 'Investments', href: '/dashboard/investments', icon: ChartBarIcon },
   { name: 'ROI History', href: '/dashboard/roi', icon: ArrowTrendingUpIcon },
   { name: 'Withdrawals', href: '/dashboard/withdrawals', icon: ArrowDownTrayIcon },
+  { name: 'Referrals', href: '/dashboard/referrals', icon: UserGroupIcon },
   { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ]
 

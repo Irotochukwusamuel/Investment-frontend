@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
 import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, BellIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -47,11 +48,20 @@ export default function NoticeBoardComponent() {
     isActive: true,
   });
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
   // Fetch notices
   const fetchNotices = async () => {
     try {
-      const response = await api.get(endpoints.admin.notices);
-      setNotices(response.data);
+      const response = await api.get(endpoints.admin.notices, { params: { page: pagination.page, limit: pagination.limit } });
+      const noticesData = response.data;
+      setNotices(noticesData.notices || noticesData);
+      setPagination(noticesData.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       toast.error('Failed to fetch notices');
     } finally {
@@ -61,7 +71,7 @@ export default function NoticeBoardComponent() {
 
   useEffect(() => {
     fetchNotices();
-  }, []);
+  }, [pagination.page, pagination.limit]);
 
   // Create notice
   const createNotice = async () => {
@@ -142,6 +152,15 @@ export default function NoticeBoardComponent() {
       case 'error': return '❌';
       default: return 'ℹ️';
     }
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
   };
 
   if (loading) {
@@ -314,6 +333,27 @@ export default function NoticeBoardComponent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {notices.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              itemsPerPageOptions={[5, 10, 20, 50, 100]}
+              showItemsPerPage={true}
+              showPageInfo={true}
+              label="notices"
+              emptyMessage="No notices found"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Notice Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

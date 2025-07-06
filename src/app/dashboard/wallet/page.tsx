@@ -316,15 +316,15 @@ export default function WalletPage() {
       await createWithdrawal.mutateAsync({
         amount: parseFloat(amount),
         currency: currencyMap[selectedCurrency as keyof typeof currencyMap],
-        notes: `Withdrawal request for ${selectedCurrency}`,
+        notes: `ROI withdrawal request for ${selectedCurrency}`,
       })
       
-      toast.success('Withdrawal request created successfully')
+      toast.success('ROI withdrawal request created successfully')
       setShowWithdrawDialog(false)
       setAmount('')
-    } catch (error) {
+    } catch (error: any) {
       console.log({error})
-      toast.error(error?.response?.data?.message ?? 'Failed to create withdrawal request')
+      toast.error(error?.response?.data?.message ?? 'Failed to create ROI withdrawal request')
     } finally {
       setIsProcessing(false)
     }
@@ -493,11 +493,18 @@ export default function WalletPage() {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
                           <DialogHeader>
-                            <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                              Withdraw {selectedCurrency}
-                            </DialogTitle>
-                            <DialogDescription className="text-gray-600">
-                              Enter the amount you want to withdraw
+                            <DialogTitle>Withdraw ROI Earnings</DialogTitle>
+                            <DialogDescription>
+                              Withdraw your ROI earnings to your bank account. 
+                              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm text-yellow-800 font-medium">Important:</p>
+                                <ul className="text-xs text-yellow-700 mt-1 space-y-1">
+                                  <li>• You can only withdraw your ROI earnings, not your deposited amounts</li>
+                                  <li>• You must have at least one active investment to withdraw</li>
+                                  <li>• Withdrawal fee: {withdrawalFee}%</li>
+                                  <li>• Processing time: instant</li>
+                                </ul>
+                              </div>
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">

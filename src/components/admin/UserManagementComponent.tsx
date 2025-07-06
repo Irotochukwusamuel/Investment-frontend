@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/ui/pagination';
 import { UserIcon, ShieldCheckIcon, ShieldExclamationIcon, EnvelopeIcon, CalendarIcon, CurrencyDollarIcon, ChartBarIcon, MagnifyingGlassIcon, FunnelIcon, ArrowDownTrayIcon, UserPlusIcon, Cog6ToothIcon, EyeIcon, PencilIcon, TrashIcon, NoSymbolIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -78,6 +79,15 @@ export default function UserManagementComponent() {
     total: 0,
     pages: 0,
   });
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
+  };
 
   // Fetch users, stats, and analytics
   const fetchData = async () => {
@@ -669,6 +679,27 @@ export default function UserManagementComponent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {users.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              itemsPerPageOptions={[5, 10, 20, 50, 100]}
+              showItemsPerPage={true}
+              showPageInfo={true}
+              label="users"
+              emptyMessage="No users found"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* User Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>

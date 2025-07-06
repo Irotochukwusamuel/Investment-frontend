@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Pagination } from '@/components/ui/pagination';
 import { ChartBarIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon, ArrowTrendingUpIcon, Cog6ToothIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon, DocumentDuplicateIcon, ArchiveBoxIcon, ChartPieIcon, DocumentTextIcon, ShieldCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { api, endpoints } from '@/lib/api';
@@ -78,6 +79,13 @@ export default function InvestmentPlansComponent() {
     search: '',
   });
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
   // Form state for create/edit
   const [formData, setFormData] = useState({
     name: '',
@@ -137,14 +145,17 @@ export default function InvestmentPlansComponent() {
   const fetchData = async () => {
     try {
       const [plansResponse, statsResponse, analyticsResponse] = await Promise.all([
-        api.get(endpoints.admin.plans, { params: filters }),
+        api.get(endpoints.admin.plans, { params: { ...filters, page: pagination.page, limit: pagination.limit } }),
         api.get(`${endpoints.admin.plans}/stats`),
         api.get(`${endpoints.admin.plans}/analytics`)
       ]);
       
-      setPlans(plansResponse.data);
+      // Handle the response structure from backend
+      const plansData = plansResponse.data;
+      setPlans(plansData.plans || plansData);
       setStats(statsResponse.data);
       setAnalytics(analyticsResponse.data);
+      setPagination(plansData.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       toast.error('Failed to fetch plan data');
     } finally {
@@ -154,7 +165,7 @@ export default function InvestmentPlansComponent() {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
+  }, [filters, pagination.page, pagination.limit]);
 
   // Create plan
   const createPlan = async () => {
@@ -372,6 +383,15 @@ export default function InvestmentPlansComponent() {
       }
       return true;
     });
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
   };
 
   if (loading) {
@@ -687,6 +707,25 @@ export default function InvestmentPlansComponent() {
               </Table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      <Card className="mb-6">
+        <CardContent className="p-0">
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            itemsPerPageOptions={[5, 10, 20, 50, 100]}
+            showItemsPerPage={true}
+            showPageInfo={true}
+            label="plans"
+            emptyMessage="No plans found"
+          />
         </CardContent>
       </Card>
 

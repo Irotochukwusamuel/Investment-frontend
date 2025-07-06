@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { ChartBarIcon, CurrencyDollarIcon, ClockIcon, UsersIcon, ArrowTrendingUpIcon, PauseIcon, PlayIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -63,11 +64,27 @@ export default function InvestmentsComponent() {
     currency: 'all',
   });
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
+  };
+
   // Fetch investments and stats
   const fetchInvestments = async () => {
     try {
       const [investmentsResponse, statsResponse] = await Promise.all([
-        api.get(endpoints.admin.investments),
+        api.get(endpoints.admin.investments, { params: { ...filters, page: pagination.page, limit: pagination.limit } }),
         api.get(`${endpoints.admin.investments}/stats`)
       ]);
       
@@ -76,6 +93,7 @@ export default function InvestmentsComponent() {
       setInvestments(Array.isArray(investmentsData) ? investmentsData : 
                     investmentsData?.investments || investmentsData?.data || []);
       setStats(statsResponse.data);
+      setPagination(investmentsResponse.data.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       console.error('Failed to fetch investment data:', error);
       toast.error('Failed to fetch investments');
@@ -89,7 +107,7 @@ export default function InvestmentsComponent() {
 
   useEffect(() => {
     fetchInvestments();
-  }, []);
+  }, [filters, pagination.page, pagination.limit]);
 
   // Update investment status
   const updateInvestmentStatus = async (investmentId: string, status: string) => {
@@ -404,6 +422,27 @@ export default function InvestmentsComponent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {investmentsArray.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              itemsPerPageOptions={[5, 10, 20, 50, 100]}
+              showItemsPerPage={true}
+              showPageInfo={true}
+              label="investments"
+              emptyMessage="No investments found"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Investment Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>

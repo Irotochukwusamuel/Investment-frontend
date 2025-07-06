@@ -215,6 +215,14 @@ export default function ProfilePage() {
                       <ShareIcon className="h-4 w-4 mr-2" />
                       Share
                     </Button>
+                    <Button
+                      onClick={() => window.location.href = '/dashboard/referrals'}
+                      variant="outline"
+                      className="flex-1 bg-white/50 backdrop-blur-sm border-2 hover:bg-gray-100 transition-colors"
+                    >
+                      <UserIcon className="h-4 w-4 mr-2" />
+                      View Referrals
+                    </Button>
                   </div>
                 </div>
 

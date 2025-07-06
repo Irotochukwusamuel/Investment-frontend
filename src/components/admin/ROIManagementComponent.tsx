@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { ArrowTrendingUpIcon, ChartBarIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -46,15 +47,24 @@ export default function ROIManagementComponent() {
     isActive: true,
   });
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
   // Fetch ROI settings and stats
   const fetchROISettings = async () => {
     try {
       const [settingsResponse, statsResponse] = await Promise.all([
-        api.get(`${endpoints.admin.plans}/roi-settings`),
-        api.get(`${endpoints.admin.plans}/roi-stats`)
+        api.get(endpoints.admin.roiSettings, { params: { page: pagination.page, limit: pagination.limit } }),
+        api.get(endpoints.admin.roiStats)
       ]);
-      setRoiSettings(settingsResponse.data);
+      const settingsData = settingsResponse.data;
+      setRoiSettings(settingsData.roiSettings || settingsData);
       setStats(statsResponse.data);
+      setPagination(settingsData.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       toast.error('Failed to fetch ROI settings');
     } finally {
@@ -64,7 +74,7 @@ export default function ROIManagementComponent() {
 
   useEffect(() => {
     fetchROISettings();
-  }, []);
+  }, [pagination.page, pagination.limit]);
 
   // Update ROI setting
   const updateROISetting = async () => {
@@ -106,6 +116,15 @@ export default function ROIManagementComponent() {
   const formatCurrency = (amount: number, currency: string) => {
     const symbol = currency === 'naira' ? '₦' : 'USDT';
     return `${symbol}${amount.toLocaleString()}`;
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
   };
 
   if (loading) {
@@ -238,6 +257,27 @@ export default function ROIManagementComponent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {roiSettings.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              itemsPerPageOptions={[5, 10, 20, 50, 100]}
+              showItemsPerPage={true}
+              showPageInfo={true}
+              label="ROI settings"
+              emptyMessage="No ROI settings found"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit ROI Setting Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { ArrowDownTrayIcon, CurrencyDollarIcon, ClockIcon, CheckIcon, XMarkIcon, EyeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -85,11 +86,18 @@ export default function WithdrawalsComponent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
   // Fetch withdrawals, stats, and settings
   const fetchData = async () => {
     try {
       const [withdrawalsResponse, statsResponse, settingsResponse] = await Promise.all([
-        api.get(endpoints.admin.withdrawals),
+        api.get(endpoints.admin.withdrawals, { params: { ...filters, page: pagination.page, limit: pagination.limit } }),
         api.get(`${endpoints.admin.withdrawals}/stats`),
         api.get(`${endpoints.admin.withdrawals}/settings`)
       ]);
@@ -101,6 +109,7 @@ export default function WithdrawalsComponent() {
       
       setStats(statsResponse.data);
       setSettings(settingsResponse.data);
+      setPagination(withdrawalsResponse.data.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       console.error('Failed to fetch withdrawal data:', error);
       toast.error('Failed to fetch withdrawal data');
@@ -115,7 +124,7 @@ export default function WithdrawalsComponent() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [filters, pagination.page, pagination.limit]);
 
   // Update withdrawal status
   const updateWithdrawalStatus = async (withdrawalId: string, status: string, notes?: string) => {
@@ -245,6 +254,15 @@ export default function WithdrawalsComponent() {
     } finally {
       setIsBulkLoading(false);
     }
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
   };
 
   if (loading) {
@@ -547,6 +565,25 @@ export default function WithdrawalsComponent() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      <Card className="mb-6">
+        <CardContent className="p-0">
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.pages}
+            totalItems={pagination.total}
+            itemsPerPage={pagination.limit}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            itemsPerPageOptions={[5, 10, 20, 50, 100]}
+            showItemsPerPage={true}
+            showPageInfo={true}
+            label="withdrawals"
+            emptyMessage="No withdrawals found"
+          />
         </CardContent>
       </Card>
 

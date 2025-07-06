@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { WalletIcon, PlusIcon, MinusIcon, ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -61,11 +62,27 @@ export default function WalletManagementComponent() {
     reason: '',
   });
 
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
+  };
+
   // Fetch wallets and stats
   const fetchWallets = async () => {
     try {
       const [walletsResponse, statsResponse] = await Promise.all([
-        api.get(endpoints.admin.wallet),
+        api.get(endpoints.admin.wallet, { params: { page: pagination.page, limit: pagination.limit } }),
         api.get(`${endpoints.admin.wallet}/stats`)
       ]);
       
@@ -74,6 +91,7 @@ export default function WalletManagementComponent() {
       setWallets(Array.isArray(walletsData) ? walletsData : 
                 walletsData?.wallets || walletsData?.data || []);
       setStats(statsResponse.data);
+      setPagination(walletsResponse.data.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       console.error('Failed to fetch wallet data:', error);
       toast.error('Failed to fetch wallet data');
@@ -87,7 +105,7 @@ export default function WalletManagementComponent() {
 
   useEffect(() => {
     fetchWallets();
-  }, []);
+  }, [pagination.page, pagination.limit]);
 
   // Adjust wallet balance
   const adjustWalletBalance = async () => {
@@ -312,6 +330,26 @@ export default function WalletManagementComponent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {walletsArray.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              itemsPerPageOptions={[10, 20, 50, 100]}
+              showItemsPerPage={true}
+              showPageInfo={true}
+              label="wallets"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Adjust Balance Dialog */}
       <Dialog open={showAdjustDialog} onOpenChange={setShowAdjustDialog}>

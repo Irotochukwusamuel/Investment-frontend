@@ -123,7 +123,7 @@ export const endpoints = {
   
   // Admin endpoints
   admin: {
-    notices: '/notices',
+    notices: '/admin/notices',
     users: '/admin/users',
     investments: '/admin/investments',
     withdrawals: '/admin/withdrawals',
@@ -133,6 +133,8 @@ export const endpoints = {
     stats: '/admin/dashboard/stats',
     dashboard: '/admin/dashboard',
     bulkTriggerPayout: '/admin/withdrawals/bulk-trigger-payout',
+    roiSettings: '/admin/plans/roi-settings',
+    roiStats: '/admin/plans/roi-stats',
   },
   
   // Notices (public)
@@ -146,6 +148,21 @@ export const endpoints = {
   // Settings (public)
   settings: {
     withdrawal: '/admin/withdrawals/settings',
+  },
+  
+  // Referrals
+  referrals: {
+    getMyReferrals: '/referrals/my',
+    getMyStats: '/referrals/my/stats',
+    getMyReferralInfo: '/referrals/my/referral',
+    getAll: '/referrals',
+    byId: (id: string) => `/referrals/${id}`,
+    create: '/referrals',
+    update: (id: string) => `/referrals/${id}`,
+    delete: (id: string) => `/referrals/${id}`,
+    markBonusPaid: (id: string) => `/referrals/${id}/mark-bonus-paid`,
+    markWelcomeBonusPaid: (id: string) => `/referrals/${id}/mark-welcome-bonus-paid`,
+    updateStats: (userId: string) => `/referrals/update-stats/${userId}`,
   },
 };
 
