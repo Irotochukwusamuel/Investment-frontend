@@ -135,6 +135,7 @@ export const endpoints = {
     bulkTriggerPayout: '/admin/withdrawals/bulk-trigger-payout',
     roiSettings: '/admin/plans/roi-settings',
     roiStats: '/admin/plans/roi-stats',
+    withdrawalPolicy: '/admin/settings/withdrawal-policy',
   },
   
   // Notices (public)

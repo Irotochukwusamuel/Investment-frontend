@@ -39,6 +39,10 @@ interface PlatformSettings {
   autoPayout?: boolean;
 }
 
+interface WithdrawalPolicy {
+  roiOnly: boolean;
+}
+
 export default function SettingsComponent() {
   const [settings, setSettings] = useState<PlatformSettings>({
     withdrawalLimits: { minAmount: 0, maxAmount: 0 },
@@ -50,9 +54,13 @@ export default function SettingsComponent() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [withdrawalPolicy, setWithdrawalPolicy] = useState<WithdrawalPolicy>({ roiOnly: true });
+  const [policyLoading, setPolicyLoading] = useState(true);
+  const [policySaving, setPolicySaving] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    fetchWithdrawalPolicy();
   }, []);
 
   const fetchSettings = async () => {
@@ -66,6 +74,17 @@ export default function SettingsComponent() {
     }
   };
 
+  const fetchWithdrawalPolicy = async () => {
+    try {
+      const response = await api.get(endpoints.admin.withdrawalPolicy);
+      setWithdrawalPolicy(response.data);
+    } catch (error) {
+      toast.error('Failed to fetch withdrawal policy');
+    } finally {
+      setPolicyLoading(false);
+    }
+  };
+
   const updateSettings = async () => {
     setSaving(true);
     try {
@@ -75,6 +94,19 @@ export default function SettingsComponent() {
       toast.error('Failed to update settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateWithdrawalPolicy = async (roiOnly: boolean) => {
+    setPolicySaving(true);
+    try {
+      await api.patch(endpoints.admin.withdrawalPolicy, { roiOnly });
+      setWithdrawalPolicy({ roiOnly });
+      toast.success('Withdrawal policy updated');
+    } catch (error) {
+      toast.error('Failed to update withdrawal policy');
+    } finally {
+      setPolicySaving(false);
     }
   };
 
@@ -137,6 +169,19 @@ export default function SettingsComponent() {
                 onCheckedChange={(checked) => setSettings({ ...settings, autoPayout: checked })}
               />
               <Label htmlFor="autoPayout" className="text-sm font-medium">Enable Auto Payout</Label>
+            </div>
+            <div className="flex items-center space-x-3 pt-4">
+              <Switch
+                id="roiOnlyPolicy"
+                checked={!!withdrawalPolicy.roiOnly}
+                onCheckedChange={(checked) => updateWithdrawalPolicy(checked)}
+                disabled={policyLoading || policySaving}
+              />
+              <Label htmlFor="roiOnlyPolicy" className="text-sm font-medium">
+                Enforce ROI-Only Withdrawal Policy
+              </Label>
+              {policyLoading && <span className="text-xs text-gray-400">Loading...</span>}
+              {policySaving && <span className="text-xs text-gray-400">Saving...</span>}
             </div>
           </CardContent>
         </Card>
