@@ -182,6 +182,7 @@ export default function DashboardLayout({
                           ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
                           : "text-gray-300 hover:bg-gray-800 hover:text-white"
                       )}
+                      onClick={() => setMobileOpen(false)}
                     >
                       <item.icon
                         className={cn(
@@ -209,6 +210,7 @@ export default function DashboardLayout({
                         ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
                         : "text-gray-300 hover:bg-gray-800 hover:text-white"
                     )}
+                    onClick={() => setMobileOpen(false)}
                   >
                     <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' ? "text-white" : "text-gray-400 group-hover:text-white")} />
                     Admin

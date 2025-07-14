@@ -12,6 +12,14 @@ const config: Config = {
         sans: ["var(--font-inter)"],
         display: ["var(--font-inter)"],
       },
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+      },
       typography: {
         DEFAULT: {
           css: {

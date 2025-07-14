@@ -208,3 +208,104 @@
     @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
   }
 }
+
+/* Mobile-specific optimizations */
+@layer utilities {
+  /* Prevent zoom on input focus on iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Improve touch targets */
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Smooth scrolling for mobile */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent horizontal scroll on mobile */
+  body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+
+  /* Better tap highlights */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Improve mobile performance */
+  .mobile-optimized {
+    will-change: auto;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* Mobile-specific viewport height fix */
+  .mobile-optimized {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Prevent mobile browser address bar issues */
+  @media screen and (max-width: 768px) {
+    .mobile-optimized {
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+    }
+  }
+
+  /* Better mobile scrolling */
+  .mobile-optimized {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Prevent mobile zoom on double tap */
+  .mobile-optimized {
+    touch-action: manipulation;
+  }
+
+  /* Better mobile animations */
+  @media (prefers-reduced-motion: no-preference) {
+    .mobile-optimized * {
+      transition: none;
+    }
+    
+    .mobile-optimized *:hover {
+      transition: none;
+    }
+  }
+
+  /* Mobile-specific loading states */
+  .mobile-loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Better mobile focus states */
+  .mobile-optimized button:focus,
+  .mobile-optimized input:focus,
+  .mobile-optimized select:focus,
+  .mobile-optimized textarea:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}
