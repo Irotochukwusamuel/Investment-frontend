@@ -223,15 +223,7 @@
     font-size: 16px !important;
   }
 
-  /* Improve touch targets */
-  button,
-  [role="button"],
-  input[type="button"],
-  input[type="submit"],
-  input[type="reset"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
+ 
 
   /* Smooth scrolling for mobile */
   html {
@@ -254,7 +246,6 @@
   /* Improve mobile performance */
   .mobile-optimized {
     will-change: auto;
-    transform: translateZ(0);
     backface-visibility: hidden;
   }
 

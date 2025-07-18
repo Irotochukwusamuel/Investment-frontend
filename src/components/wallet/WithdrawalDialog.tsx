@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletBalance } from '@/lib/hooks/useWallet';
 import { useActiveBankDetails } from '@/lib/hooks/useBank';
 import { useCreateWithdrawal } from '@/lib/hooks/useWithdrawal';
+import { useWithdrawalSettings } from '@/lib/hooks/useWallet';
 
 interface WithdrawalDialogProps {
   open: boolean;
@@ -31,9 +32,6 @@ interface WithdrawalDialogProps {
   onSuccess?: () => void;
   currency?: 'naira' | 'usdt';
   initialAmount?: string;
-  minWithdrawal?: number;
-  maxWithdrawal?: number;
-  withdrawalFee?: number; // Fee percentage from backend settings
 }
 
 export function WithdrawalDialog({ 
@@ -42,9 +40,6 @@ export function WithdrawalDialog({
   onSuccess, 
   currency = 'naira', 
   initialAmount,
-  minWithdrawal = 0,
-  maxWithdrawal = 1000000,
-  withdrawalFee = 2.5, // Default 2.5% fee
 }: WithdrawalDialogProps) {
   const [step, setStep] = useState<'amount' | 'confirm' | 'success'>('amount');
   const [amount, setAmount] = useState<string>('');
@@ -53,7 +48,13 @@ export function WithdrawalDialog({
 
   const { data: walletBalance, isLoading: walletLoading } = useWalletBalance();
   const { data: bankDetails, isLoading: bankLoading } = useActiveBankDetails();
+  const { data: withdrawalSettings, isLoading: settingsLoading } = useWithdrawalSettings();
   const createWithdrawal = useCreateWithdrawal();
+
+  // Get withdrawal limits and fees from settings
+  const minWithdrawal = withdrawalSettings?.minWithdrawalAmount ?? 100;
+  const maxWithdrawal = withdrawalSettings?.maxWithdrawalAmount ?? 1000000;
+  const withdrawalFee = withdrawalSettings?.withdrawalFee ?? 2.5;
 
   // Initialize amount when dialog opens
   useEffect(() => {
@@ -90,8 +91,13 @@ export function WithdrawalDialog({
       return;
     }
     if (amt > maxWithdrawal) {
-      setAmountError(`Amount exceeds your available balance or the maximum allowed (${formatCurrency(maxWithdrawal)})`);
-      toast.error(`Amount exceeds your available balance or the maximum allowed (${formatCurrency(maxWithdrawal)})`);
+      setAmountError(`Amount exceeds the maximum allowed (${formatCurrency(maxWithdrawal)})`);
+      toast.error(`Amount exceeds the maximum allowed (${formatCurrency(maxWithdrawal)})`);
+      return;
+    }
+    if (amt > availableBalance) {
+      setAmountError(`Amount exceeds your available balance (${formatCurrency(availableBalance)})`);
+      toast.error(`Amount exceeds your available balance (${formatCurrency(availableBalance)})`);
       return;
     }
     setAmountError(null);
@@ -144,6 +150,19 @@ export function WithdrawalDialog({
     setAmount('');
     setIsProcessing(false);
   };
+
+  if (settingsLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <span className="ml-2">Loading withdrawal settings...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -200,7 +219,7 @@ export function WithdrawalDialog({
                         <span className="font-medium">{formatCurrency(parseFloat(amount))}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Processing Fee</span>
+                        <span>Processing Fee ({withdrawalFee}%)</span>
                         <span className="font-medium">{formatCurrency(fee)}</span>
                       </div>
                       <Separator />
@@ -302,7 +321,7 @@ export function WithdrawalDialog({
                       <span className="font-semibold">{formatCurrency(parseFloat(amount))}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Processing Fee</span>
+                      <span>Processing Fee ({withdrawalFee}%)</span>
                       <span className="font-semibold">{formatCurrency(fee)}</span>
                     </div>
                     <Separator />
@@ -315,32 +334,24 @@ export function WithdrawalDialog({
                   <Separator />
 
                   <div className="space-y-2">
-                    <h4 className="font-medium">Withdrawal Account</h4>
+                    <h4 className="font-semibold">Bank Details</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Bank</span>
-                        <span className="font-medium">{bankDetails?.bankName}</span>
+                        <span>{bankDetails?.bankName}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Account</span>
-                        <span className="font-medium">{bankDetails?.accountNumber}</span>
+                        <span>{bankDetails?.accountNumber}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Name</span>
-                        <span className="font-medium">{bankDetails?.accountName}</span>
+                        <span>{bankDetails?.accountName}</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Important:</strong> Please verify your bank details are correct. 
-                  Withdrawals cannot be reversed once processed.
-                </AlertDescription>
-              </Alert>
 
               <div className="flex gap-2">
                 <Button
@@ -371,29 +382,25 @@ export function WithdrawalDialog({
           {step === 'success' && (
             <motion.div
               key="success"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.3 }}
-              className="space-y-4"
+              className="text-center space-y-4"
             >
-              <Card className="border-green-200 bg-green-50">
-                <CardContent className="p-6 text-center">
-                  <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-green-800 mb-2">
-                    Withdrawal Request Submitted!
-                  </h3>
-                  <p className="text-green-700 mb-4">
-                    Your withdrawal request for {formatCurrency(netAmount)} has been submitted successfully.
-                  </p>
-                  <div className="space-y-2 text-sm text-green-600">
-                    <p>• You'll receive an email confirmation shortly</p>
-                    <p>• Processing typically takes 1-24 hours</p>
-                    <p>• Funds will be sent to your registered bank account</p>
-                  </div>
-                </CardContent>
-              </Card>
-
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Withdrawal Request Submitted!</h3>
+                <p className="text-gray-600 mt-2">
+                  Your withdrawal request for {formatCurrency(parseFloat(amount))} has been submitted successfully.
+                </p>
+              </div>
+              <div className="space-y-2 text-sm text-gray-500">
+                <p>You'll receive {formatCurrency(netAmount)} after processing.</p>
+                <p>Processing time: 1-24 hours</p>
+              </div>
               <div className="flex gap-2">
                 <Button
                   onClick={handleClose}
@@ -404,9 +411,9 @@ export function WithdrawalDialog({
                 </Button>
                 <Button
                   onClick={handleCreateNew}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-red-600 hover:bg-red-700"
                 >
-                  Make Another Withdrawal
+                  New Withdrawal
                 </Button>
               </div>
             </motion.div>

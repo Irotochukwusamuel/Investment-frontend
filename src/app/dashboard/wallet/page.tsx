@@ -47,7 +47,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Inter, Poppins } from 'next/font/google'
-import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings } from '@/lib/hooks/useWallet'
+import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings, usePlatformSettings } from '@/lib/hooks/useWallet'
 import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
 import { endpoints, api } from '@/lib/api'
 
@@ -117,16 +117,23 @@ export default function WalletPage() {
   const createDeposit = useCreateDeposit()
   const createWithdrawal = useCreateWithdrawal()
 
-  // Withdrawal settings hook
+  // Settings hooks
   const { data: withdrawalSettings, isLoading: settingsLoading } = useWithdrawalSettings();
+  const { data: platformSettings, isLoading: platformSettingsLoading } = usePlatformSettings();
 
-  const isLoading = walletLoading || transactionsLoading
+  const isLoading = walletLoading || transactionsLoading || settingsLoading || platformSettingsLoading
   const transactions = transactionData?.transactions || []
 
-  // Get withdrawal limits and fees from settings
+  // Get withdrawal limits and fees from settings with proper null checks
   const minWithdrawal = withdrawalSettings?.minWithdrawalAmount ?? 100
   const maxWithdrawal = withdrawalSettings?.maxWithdrawalAmount ?? 1000000
   const withdrawalFee = withdrawalSettings?.withdrawalFee ?? 2.5
+
+  // Get deposit limits and fees from platform settings with proper null checks
+  const minDepositNGN = platformSettings?.depositLimits?.minAmount ?? 100
+  const maxDepositNGN = platformSettings?.depositLimits?.maxAmount ?? 1000000
+  const depositFee = platformSettings?.fees?.depositFee ?? 0
+  const transactionFee = platformSettings?.fees?.transactionFee ?? 1.0
 
   // Create wallet balances array from real data
   const walletBalances = [
@@ -216,14 +223,22 @@ export default function WalletPage() {
       return
     }
 
-    // Validate minimum amount for NGN
-    if (selectedCurrency === 'NGN' && parseFloat(amount) < 100) {
-      toast.error('Minimum deposit amount for NGN is ₦100')
+    const amountValue = parseFloat(amount)
+
+    // Validate minimum amount for NGN using platform settings
+    if (selectedCurrency === 'NGN' && amountValue < minDepositNGN) {
+      toast.error(`Minimum deposit amount for NGN is ₦${minDepositNGN?.toLocaleString() || '100'}`)
+      return
+    }
+
+    // Validate maximum amount for NGN using platform settings
+    if (selectedCurrency === 'NGN' && amountValue > maxDepositNGN) {
+      toast.error(`Maximum deposit amount for NGN is ₦${maxDepositNGN?.toLocaleString() || '1,000,000'}`)
       return
     }
 
     // Validate minimum amount for USDT
-    if (selectedCurrency === 'USDT' && parseFloat(amount) < 1) {
+    if (selectedCurrency === 'USDT' && amountValue < 1) {
       toast.error('Minimum deposit amount for USDT is $1')
       return
     }
@@ -263,7 +278,7 @@ export default function WalletPage() {
     setIsProcessing(true)
     try {
       await createDeposit.mutateAsync({
-        amount: parseFloat(amount),
+        amount: amountValue,
         currency: selectedCurrency.toLowerCase() as 'naira' | 'usdt',
         paymentMethod: paymentMethod as 'bank_transfer' | 'crypto' | 'card'
       })
@@ -287,20 +302,27 @@ export default function WalletPage() {
     return (amount * withdrawalFee) / 100
   }
 
+  const calculateDepositFee = (amount: number, currency: string) => {
+    // Use deposit fee percentage from platform settings
+    return (amount * depositFee) / 100
+  }
+
   const handleWithdrawal = async () => {
     if (!amount) {
       toast.error('Please enter an amount.')
       return
     }
 
+    const amountValue = parseFloat(amount)
+
     // Validate minimum amount using backend settings
-    if (parseFloat(amount) < minWithdrawal) {
+    if (amountValue < minWithdrawal) {
       toast.error(`Minimum withdrawal amount is ${formatAmount(minWithdrawal, selectedCurrency)}`)
       return
     }
 
     // Validate maximum amount
-    if (parseFloat(amount) > maxWithdrawal) {
+    if (amountValue > maxWithdrawal) {
       toast.error(`Maximum withdrawal amount is ${formatAmount(maxWithdrawal, selectedCurrency)}`)
       return
     }
@@ -314,7 +336,7 @@ export default function WalletPage() {
       } as const
       
       await createWithdrawal.mutateAsync({
-        amount: parseFloat(amount),
+        amount: amountValue,
         currency: currencyMap[selectedCurrency as keyof typeof currencyMap],
         notes: `ROI withdrawal request for ${selectedCurrency}`,
       })
@@ -503,6 +525,7 @@ export default function WalletPage() {
                                   <li>• You must have at least one active investment to withdraw</li>
                                   <li>• Withdrawal fee: {withdrawalFee}%</li>
                                   <li>• Processing time: instant</li>
+                                  <li>• Min: {formatAmount(minWithdrawal, selectedCurrency)} | Max: {formatAmount(maxWithdrawal, selectedCurrency)}</li>
                                 </ul>
                               </div>
                             </DialogDescription>
@@ -933,13 +956,46 @@ export default function WalletPage() {
                     onChange={(e) => setAmount(e.target.value)}
                     className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
                     placeholder={`Enter amount in ${selectedCurrency}`}
-                    min="1"
+                    min={selectedCurrency === 'NGN' ? (minDepositNGN || 100) : 1}
+                    max={selectedCurrency === 'NGN' ? (maxDepositNGN || 1000000) : undefined}
                     step="0.01"
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    Minimum deposit amount: $1
+                    {selectedCurrency === 'NGN' 
+                      ? platformSettingsLoading 
+                        ? 'Loading minimum deposit amount...'
+                        : `Minimum deposit amount: ₦${(minDepositNGN || 100).toLocaleString()}`
+                      : 'Minimum deposit amount: $1'
+                    }
                   </p>
+                  {depositFee > 0 && (
+                    <p className="mt-1 text-sm text-amber-600">
+                      Deposit fee: {depositFee}%
+                    </p>
+                  )}
                 </div>
+                
+                {amount && parseFloat(amount) > 0 && (
+                  <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 font-medium">Amount</span>
+                        <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
+                      </div>
+                      {depositFee > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500 font-medium">Fee</span>
+                          <span className="font-semibold">{formatAmount(calculateDepositFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
+                        </div>
+                      )}
+                      <Separator className="my-2" />
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span>Total to Pay</span>
+                        <span>{formatAmount(Number(amount) + calculateDepositFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <Alert className="bg-blue-50 border-blue-200">
                   <CurrencyDollarIcon className="h-4 w-4 text-blue-600" />
@@ -949,81 +1005,85 @@ export default function WalletPage() {
                   </AlertDescription>
                 </Alert>
               </div>
-            ) : depositStep === 2 ? (
-              <div className="space-y-4">
-                <Alert className="bg-blue-50 border-blue-200">
-                  <CheckCircleIcon className="h-4 w-4 text-blue-600" />
-                  <AlertTitle className="text-blue-800 font-semibold">Deposit Details</AlertTitle>
-                  <AlertDescription className="text-blue-700">
-                    Please send {formatAmount(Number(amount), selectedCurrency)} to the following wallet:
-                  </AlertDescription>
-                </Alert>
-                <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">Network</span>
-                      <span className="font-semibold">TRC20</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">Wallet Address</span>
-                      <span className="font-semibold">TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">Amount</span>
-                      <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">Reference</span>
-                      <span className="font-semibold">TRX{Math.random().toString(36).substring(7).toUpperCase()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             ) : (
               <div className="space-y-4">
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                  <AlertTitle className="text-green-800 font-semibold">Proof of Payment</AlertTitle>
-                  <AlertDescription className="text-green-700">
-                    Please provide your payment details and upload proof of payment
-                  </AlertDescription>
-                </Alert>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-gray-700 font-medium">Wallet Address Used</Label>
-                    <Input
-                      value={depositFromAccount}
-                      onChange={(e) => setDepositFromAccount(e.target.value)}
-                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                      placeholder="Enter the wallet address you used"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-gray-700 font-medium">Transaction Hash</Label>
-                    <Input
-                      value={depositReference}
-                      onChange={(e) => setDepositReference(e.target.value)}
-                      className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                      placeholder="Enter your transaction hash"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-gray-700 font-medium">Proof of Payment</Label>
-                    <div className="mt-1">
-                      <Input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={handleFileChange}
-                        className="bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                      />
-                      <p className="mt-1 text-sm text-gray-500">
-                        Upload screenshot or PDF of your payment (max 5MB)
-                      </p>
+                {depositStep === 2 ? (
+                  <>
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <CheckCircleIcon className="h-4 w-4 text-blue-600" />
+                      <AlertTitle className="text-blue-800 font-semibold">Deposit Details</AlertTitle>
+                      <AlertDescription className="text-blue-700">
+                        Please send {formatAmount(Number(amount), selectedCurrency)} to the following wallet:
+                      </AlertDescription>
+                    </Alert>
+                    <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500 font-medium">Network</span>
+                          <span className="font-semibold">TRC20</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500 font-medium">Wallet Address</span>
+                          <span className="font-semibold">TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</span>
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500 font-medium">Amount</span>
+                          <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500 font-medium">Reference</span>
+                          <span className="font-semibold">TRX{Math.random().toString(36).substring(7).toUpperCase()}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <Alert className="bg-green-50 border-green-200">
+                      <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                      <AlertTitle className="text-green-800 font-semibold">Proof of Payment</AlertTitle>
+                      <AlertDescription className="text-green-700">
+                        Please provide your payment details and upload proof of payment
+                      </AlertDescription>
+                    </Alert>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-700 font-medium">Wallet Address Used</Label>
+                        <Input
+                          value={depositFromAccount}
+                          onChange={(e) => setDepositFromAccount(e.target.value)}
+                          className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                          placeholder="Enter the wallet address you used"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-700 font-medium">Transaction Hash</Label>
+                        <Input
+                          value={depositReference}
+                          onChange={(e) => setDepositReference(e.target.value)}
+                          className="mt-1 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                          placeholder="Enter your transaction hash"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-700 font-medium">Proof of Payment</Label>
+                        <div className="mt-1">
+                          <Input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={handleFileChange}
+                            className="bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                          />
+                          <p className="mt-1 text-sm text-gray-500">
+                            Upload screenshot or PDF of your payment (max 5MB)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

@@ -60,19 +60,19 @@ const features = [
 ]
 
 const usdtInvestmentPlans = [
-  { name: 'Cadet', min: 5, max: 20, dailyROI: 5, welcomeBonus: 2.5 },
-  { name: 'Captain', min: 21, max: 35, dailyROI: 5.8, welcomeBonus: 3 },
-  { name: 'General', min: 36, max: 50, dailyROI: 6.25, welcomeBonus: 3.5 },
-  { name: 'Vanguard', min: 51, max: 99, dailyROI: 6.7, welcomeBonus: 4 },
-  { name: 'Admiral', min: 100, max: 150, dailyROI: 7.1, welcomeBonus: 4.5 },
+  { name: 'Cadet', min: 5, max: 20, dailyROI: 5.0, welcomeBonus: 2.5, referralBonus: 3.5 },
+  { name: 'Captain', min: 21, max: 35, dailyROI: 5.8, welcomeBonus: 3.0, referralBonus: 4.0 },
+  { name: 'General', min: 36, max: 50, dailyROI: 6.25, welcomeBonus: 3.5, referralBonus: 4.5 },
+  { name: 'Vanguard', min: 51, max: 99, dailyROI: 6.7, welcomeBonus: 4.0, referralBonus: 5.0 },
+  { name: 'Admiral', min: 100, max: 150, dailyROI: 7.1, welcomeBonus: 4.5, referralBonus: 6.0 },
 ];
 
 const nairaInvestmentPlans = [
-  { name: 'Cadet', min: 5000, max: 25000, dailyROI: 5, welcomeBonus: 2.5 },
-  { name: 'Captain', min: 26000, max: 35000, dailyROI: 5.8, welcomeBonus: 3 },
-  { name: 'General', min: 36000, max: 45000, dailyROI: 6.25, welcomeBonus: 3.5 },
-  { name: 'Vanguard', min: 46000, max: 55000, dailyROI: 6.7, welcomeBonus: 4 },
-  { name: 'Admiral', min: 156000, max: 250000, dailyROI: 7.1, welcomeBonus: 4.5 },
+  { name: 'Cadet', min: 5000, max: 25000, dailyROI: 5.0, welcomeBonus: 2.5, referralBonus: 3.5 },
+  { name: 'Captain', min: 26000, max: 35000, dailyROI: 5.8, welcomeBonus: 3.0, referralBonus: 4.0 },
+  { name: 'General', min: 36000, max: 45000, dailyROI: 6.25, welcomeBonus: 3.5, referralBonus: 4.5 },
+  { name: 'Vanguard', min: 46000, max: 55000, dailyROI: 6.7, welcomeBonus: 4.0, referralBonus: 5.0 },
+  { name: 'Admiral', min: 156000, max: 250000, dailyROI: 7.1, welcomeBonus: 4.5, referralBonus: 6.0 },
 ];
 
 const howItWorks = [

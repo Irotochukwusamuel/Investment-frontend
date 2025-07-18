@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, endpoints, handleApiResponse } from '../api';
 import { toast } from 'sonner';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 // Types
 export interface LoginData {
@@ -78,6 +79,124 @@ export interface VerifyOtpResponse {
   resetToken?: string;
   expiresAt?: string;
 }
+
+// Session timeout constants
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const WARNING_TIME = 5 * 60 * 1000; // 5 minutes warning before timeout
+
+// Session timeout hook
+export const useSessionTimeout = () => {
+  const queryClient = useQueryClient();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const warningRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const [showWarning, setShowWarning] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(WARNING_TIME / 1000);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    queryClient.clear();
+    setShowWarning(false);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/login';
+    }
+  }, [queryClient]);
+
+  const resetSessionTimer = useCallback(() => {
+    // Clear existing timers
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (warningRef.current) {
+      clearTimeout(warningRef.current);
+    }
+
+    // Hide warning if it was showing
+    setShowWarning(false);
+
+    // Update last activity
+    lastActivityRef.current = Date.now();
+
+    // Set warning timer (25 minutes)
+    warningRef.current = setTimeout(() => {
+      setShowWarning(true);
+      setTimeRemaining(WARNING_TIME / 1000);
+    }, SESSION_TIMEOUT - WARNING_TIME);
+
+    // Set logout timer (30 minutes)
+    timeoutRef.current = setTimeout(() => {
+      toast.error('Your session has expired due to inactivity. Please log in again.');
+      logout();
+    }, SESSION_TIMEOUT);
+  }, [logout]);
+
+  const handleStayLoggedIn = useCallback(() => {
+    resetSessionTimer();
+  }, [resetSessionTimer]);
+
+  const handleUserActivity = useCallback(() => {
+    resetSessionTimer();
+  }, [resetSessionTimer]);
+
+  useEffect(() => {
+    // Only set up session timeout if user is logged in
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    // Set up activity listeners
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const activityHandler = () => {
+      handleUserActivity();
+    };
+
+    events.forEach(event => {
+      document.addEventListener(event, activityHandler, true);
+    });
+
+    // Initial timer setup
+    resetSessionTimer();
+
+    // Cleanup function
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, activityHandler, true);
+      });
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (warningRef.current) {
+        clearTimeout(warningRef.current);
+      }
+    };
+  }, [handleUserActivity, resetSessionTimer]);
+
+  // Countdown effect for warning
+  useEffect(() => {
+    if (!showWarning) return;
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          logout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showWarning, logout]);
+
+  return {
+    resetSessionTimer,
+    lastActivity: lastActivityRef.current,
+    showWarning,
+    timeRemaining,
+    handleStayLoggedIn,
+    handleLogout: logout,
+  };
+};
 
 // Auth hooks
 export const useLogin = () => {
@@ -227,4 +346,59 @@ export const useUpdateProfile = () => {
       toast.error(error.response?.data?.message || 'Failed to update profile');
     },
   });
+};
+
+// Main auth hook that combines all functionality
+export const useAuth = () => {
+  const { data: user, isLoading, error } = useUser();
+  const loginMutation = useLogin();
+  const logoutMutation = useLogout();
+  const { resetSessionTimer, lastActivity, showWarning, timeRemaining, handleStayLoggedIn, handleLogout } = useSessionTimeout();
+  const queryClient = useQueryClient();
+
+  const isAuthenticated = !!user && !error;
+
+  const login = async (credentials: LoginData) => {
+    await loginMutation.mutateAsync(credentials);
+  };
+
+  const register = async (data: RegisterData) => {
+    // This would typically be handled by a separate register mutation
+    throw new Error('Register functionality should be handled separately');
+  };
+
+  const logout = () => {
+    logoutMutation.mutate();
+  };
+
+  const updateUser = (userData: Partial<User>) => {
+    // This would typically update the user in the cache
+    // For now, we'll just invalidate the query
+    queryClient.invalidateQueries({ queryKey: ['user'] });
+  };
+
+  const checkAuth = async () => {
+    // This would typically check if the current token is valid
+    // For now, we'll just check if we have a user
+    if (!user && !isLoading) {
+      throw new Error('Not authenticated');
+    }
+  };
+
+  return {
+    user,
+    isAuthenticated,
+    isLoading,
+    login,
+    register,
+    logout,
+    updateUser,
+    checkAuth,
+    showWarning,
+    timeRemaining,
+    handleStayLoggedIn,
+    handleLogout,
+    resetSessionTimer,
+    lastActivity,
+  };
 }; 

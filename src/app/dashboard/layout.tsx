@@ -38,8 +38,9 @@ import {
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from "next-themes"
-import { useLogout, useUser } from '@/lib/hooks/useAuth'
+import { useLogout, useUser, useSessionTimeout } from '@/lib/hooks/useAuth'
 import { useNotifications, useUnreadNotificationsCount, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, formatNotificationTime } from '@/lib/hooks/useNotifications'
+import { SessionTimeoutWarning } from '@/components/ui/session-timeout-warning'
 
 interface UserProfile {
   name: string
@@ -71,6 +72,15 @@ export default function DashboardLayout({
   const logout = useLogout();
   const router = useRouter();
   const { data: user } = useUser();
+  
+  // Session timeout functionality
+  const { 
+    resetSessionTimer, 
+    showWarning, 
+    timeRemaining, 
+    handleStayLoggedIn, 
+    handleLogout: handleSessionLogout 
+  } = useSessionTimeout();
 
   // Use real notifications from the API
   const { data: notificationsData } = useNotifications({ limit: 10 });
@@ -97,6 +107,25 @@ export default function DashboardLayout({
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Reset session timer on any user interaction
+  useEffect(() => {
+    const handleUserActivity = () => {
+      resetSessionTimer();
+    };
+
+    // Add event listeners for user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, handleUserActivity, { passive: true });
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserActivity);
+      });
+    };
+  }, [resetSessionTimer]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -505,7 +534,7 @@ export default function DashboardLayout({
                   <div className="p-2">
                     <DropdownMenuItem
                       className="flex items-center space-x-2 text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
-                      onClick={handleLogout}
+                      onClick={handleSessionLogout}
                     >
                       <ArrowRightOnRectangleIcon className="h-4 w-4" />
                       <span>Sign out</span>
@@ -523,6 +552,14 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
+
+      {/* Session Timeout Warning */}
+      <SessionTimeoutWarning
+        isOpen={showWarning}
+        onStayLoggedIn={handleStayLoggedIn}
+        onLogout={handleSessionLogout}
+        timeRemaining={timeRemaining}
+      />
     </div>
   )
 } 

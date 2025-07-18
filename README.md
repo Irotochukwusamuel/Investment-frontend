@@ -1,172 +1,121 @@
-# KLTMINES Investment Platform - Frontend
+# Investment Platform Frontend
 
-The frontend application built with Next.js 15, providing a modern and responsive user interface for the KLTMINES investment platform.
+A modern React/Next.js frontend for the investment platform with comprehensive features including user authentication, wallet management, investments, and admin functionality.
 
-## 🚀 Tech Stack
+## Features
 
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type safety and better development experience
-- **Tailwind CSS** - Utility-first CSS framework
-- **Radix UI** - Accessible and customizable UI components
-- **React Query (TanStack Query)** - Server state management
-- **React Hook Form** - Form validation and handling
-- **Framer Motion** - Smooth animations and transitions
-- **Next Auth** - Authentication for Next.js
-- **Recharts** - Chart and data visualization
-- **Sonner** - Beautiful toast notifications
+### Authentication & Security
+- **Session Timeout**: Automatic logout after 30 minutes of inactivity
+- **Session Warning**: 5-minute warning before session expiration with option to stay logged in
+- **Secure Token Management**: JWT tokens with automatic refresh and cleanup
+- **User Activity Tracking**: Monitors user interactions to reset session timers
 
-## 📁 Project Structure
+### User Dashboard
+- **Wallet Management**: View balances, deposit, and withdraw funds
+- **Investment Plans**: Browse and invest in various investment opportunities
+- **ROI Tracking**: Monitor investment returns and earnings
+- **Referral System**: Earn rewards by referring other users
+- **Profile Management**: Update personal information and settings
 
-```
-frontend/
-├── src/
-│   ├── app/                 # Next.js App Router pages
-│   ├── components/          # Reusable UI components
-│   │   ├── ui/             # Base UI components (shadcn/ui)
-│   │   ├── landing/        # Landing page components
-│   │   ├── dashboard/      # Dashboard components
-│   │   └── auth/           # Authentication components
-│   ├── lib/                # Utility functions and configurations
-│   ├── hooks/              # Custom React hooks
-│   ├── types/              # TypeScript type definitions
-│   └── styles/             # Global styles
-├── public/                 # Static assets
-├── package.json           # Dependencies and scripts
-├── tsconfig.json          # TypeScript configuration
-├── tailwind.config.ts     # Tailwind CSS configuration
-├── next.config.ts         # Next.js configuration
-└── README.md              # This file
-```
+### Admin Panel
+- **User Management**: View and manage all platform users
+- **Investment Management**: Create and manage investment plans
+- **Withdrawal Management**: Process and approve withdrawal requests
+- **Platform Settings**: Configure fees, limits, and system settings
+- **Analytics Dashboard**: View platform statistics and performance
 
-## 🛠️ Development
+## Session Timeout Configuration
+
+The platform implements a comprehensive session timeout system:
+
+- **Timeout Duration**: 30 minutes of inactivity
+- **Warning Time**: 5 minutes before automatic logout
+- **Activity Detection**: Monitors mouse, keyboard, touch, and scroll events
+- **User Control**: Users can extend their session or logout immediately
+- **Automatic Cleanup**: Clears all cached data and redirects to login
+
+### Session Timeout Behavior
+
+1. **Active Session**: Timer resets on any user interaction
+2. **Warning Phase**: Shows countdown dialog 5 minutes before timeout
+3. **User Options**: 
+   - "Stay Logged In" - Extends session for another 30 minutes
+   - "Logout Now" - Immediately logs out the user
+4. **Automatic Logout**: Forces logout and redirects to login page
+
+## Getting Started
 
 ### Prerequisites
-
-- Node.js (>=18.0.0)
-- PNPM (>=8.0.0)
+- Node.js 18+ 
+- npm or yarn
+- Backend API running (see backend documentation)
 
 ### Installation
 
-From the project root:
 ```bash
-pnpm install
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+
+# Start development server
+npm run dev
 ```
-
-### Development Server
-
-Start the development server:
-```bash
-pnpm dev:frontend
-```
-
-The application will be available at `http://localhost:3000`.
-
-### Building for Production
-
-```bash
-pnpm build:frontend
-```
-
-### Starting Production Server
-
-```bash
-pnpm start
-```
-
-## 🎨 UI Components
-
-This project uses shadcn/ui components built on top of Radix UI. Components are located in `src/components/ui/` and can be customized via Tailwind CSS.
-
-### Adding New Components
-
-To add a new shadcn/ui component:
-```bash
-npx shadcn-ui@latest add [component-name]
-```
-
-## 🔧 Configuration
 
 ### Environment Variables
 
-Create a `.env.local` file in the frontend directory:
+Create a `.env.local` file with the following variables:
 
 ```env
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### API Configuration
+## Development
 
-The frontend communicates with the backend API. Configure the API base URL in `src/lib/api.ts`.
+### Project Structure
 
-## 📱 Features
-
-- **Responsive Design** - Mobile-first approach
-- **Dark/Light Mode** - Theme switching
-- **Authentication** - Secure user login/registration
-- **Dashboard** - Investment portfolio management
-- **Charts & Analytics** - Real-time data visualization
-- **Payment Integration** - Multiple payment providers
-- **Real-time Updates** - Socket.io integration
-- **Form Validation** - Comprehensive form handling
-- **Accessibility** - WCAG compliant components
-
-## 🧪 Testing
-
-```bash
-# Run type checking
-pnpm type-check
-
-# Run linting
-pnpm lint
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── auth/              # Authentication pages
+│   ├── dashboard/         # Dashboard pages
+│   └── layout.tsx         # Root layout
+├── components/            # Reusable components
+│   ├── ui/               # UI components
+│   ├── admin/            # Admin-specific components
+│   └── dashboard/        # Dashboard components
+├── lib/                  # Utilities and configurations
+│   ├── hooks/            # Custom React hooks
+│   ├── api.ts            # API configuration
+│   └── utils.ts          # Utility functions
+└── types/                # TypeScript type definitions
 ```
 
-## 🚀 Deployment
+### Key Components
 
-The frontend can be deployed to various platforms:
+- **SessionProvider**: Manages authentication state and session timeout
+- **useAuth**: Main authentication hook with session management
+- **useSessionTimeout**: Handles session timeout logic and warnings
+- **SessionTimeoutWarning**: UI component for session warnings
 
-### Vercel (Recommended)
-```bash
-vercel --prod
-```
+## Security Features
 
-### Netlify
-```bash
-npm run build
-# Deploy the 'out' directory
-```
+- **Automatic Session Management**: Prevents indefinite login sessions
+- **Activity Monitoring**: Tracks user interactions to prevent premature timeouts
+- **Secure Token Storage**: Uses localStorage with automatic cleanup
+- **API Interceptors**: Handles authentication errors and token refresh
+- **Route Protection**: Guards protected routes from unauthorized access
 
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN pnpm install
-COPY . .
-RUN pnpm build
-EXPOSE 3000
-CMD ["pnpm", "start"]
-```
+## Contributing
 
-## 📝 Development Guidelines
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-1. **Components**: Create reusable components in `src/components/`
-2. **Pages**: Use App Router in `src/app/`
-3. **Styles**: Use Tailwind CSS classes
-4. **State Management**: Use React Query for server state
-5. **Forms**: Use React Hook Form with Zod validation
-6. **Icons**: Use Lucide React icons
-7. **Animations**: Use Framer Motion sparingly
+## License
 
-## 🤝 Contributing
-
-1. Follow the existing code style
-2. Write meaningful commit messages
-3. Update documentation when needed
-4. Test your changes thoroughly
-5. Use TypeScript strictly
-
-## 📄 License
-
-This project is part of the KLTMINES Investment Platform and is proprietary software. 
+This project is licensed under the MIT License. 

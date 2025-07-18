@@ -7,12 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Cog6ToothIcon, CurrencyDollarIcon, ShieldCheckIcon, BellIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, CurrencyDollarIcon, ShieldCheckIcon, BellIcon, ArrowTrendingUpIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { api, endpoints } from '@/lib/api';
 
 interface PlatformSettings {
   withdrawalLimits: {
+    minAmount: number;
+    maxAmount: number;
+  };
+  depositLimits: {
     minAmount: number;
     maxAmount: number;
   };
@@ -46,6 +50,7 @@ interface WithdrawalPolicy {
 export default function SettingsComponent() {
   const [settings, setSettings] = useState<PlatformSettings>({
     withdrawalLimits: { minAmount: 0, maxAmount: 0 },
+    depositLimits: { minAmount: 0, maxAmount: 0 },
     fees: { withdrawalFee: 0, depositFee: 0, transactionFee: 0 },
     security: { requireEmailVerification: true, requirePhoneVerification: false, twoFactorAuth: false, sessionTimeout: 24 },
     notifications: { emailNotifications: true, smsNotifications: false, pushNotifications: true },
@@ -57,18 +62,74 @@ export default function SettingsComponent() {
   const [withdrawalPolicy, setWithdrawalPolicy] = useState<WithdrawalPolicy>({ roiOnly: true });
   const [policyLoading, setPolicyLoading] = useState(true);
   const [policySaving, setPolicySaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalSettings, setOriginalSettings] = useState<PlatformSettings | null>(null);
 
   useEffect(() => {
     fetchSettings();
     fetchWithdrawalPolicy();
   }, []);
 
+  // Track changes
+  useEffect(() => {
+    if (originalSettings) {
+      const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+      setHasChanges(hasChanges);
+    }
+  }, [settings]);
+
+  // Handle initial change detection when originalSettings is set
+  useEffect(() => {
+    if (originalSettings && settings) {
+      const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+      setHasChanges(hasChanges);
+    }
+  }, [originalSettings]);
+
   const fetchSettings = async () => {
     try {
       const response = await api.get(endpoints.admin.settings);
-      setSettings(response.data);
+      const fetchedSettings = response.data;
+      
+      // Ensure all required properties exist with defaults
+      const safeSettings: PlatformSettings = {
+        withdrawalLimits: {
+          minAmount: fetchedSettings?.withdrawalLimits?.minAmount ?? 1000,
+          maxAmount: fetchedSettings?.withdrawalLimits?.maxAmount ?? 1000000,
+        },
+        depositLimits: {
+          minAmount: fetchedSettings?.depositLimits?.minAmount ?? 100,
+          maxAmount: fetchedSettings?.depositLimits?.maxAmount ?? 1000000,
+        },
+        fees: {
+          withdrawalFee: fetchedSettings?.fees?.withdrawalFee ?? 2.5,
+          depositFee: fetchedSettings?.fees?.depositFee ?? 0,
+          transactionFee: fetchedSettings?.fees?.transactionFee ?? 1.0,
+        },
+        security: {
+          requireEmailVerification: fetchedSettings?.security?.requireEmailVerification ?? true,
+          requirePhoneVerification: fetchedSettings?.security?.requirePhoneVerification ?? false,
+          twoFactorAuth: fetchedSettings?.security?.twoFactorAuth ?? false,
+          sessionTimeout: fetchedSettings?.security?.sessionTimeout ?? 24,
+        },
+        notifications: {
+          emailNotifications: fetchedSettings?.notifications?.emailNotifications ?? true,
+          smsNotifications: fetchedSettings?.notifications?.smsNotifications ?? false,
+          pushNotifications: fetchedSettings?.notifications?.pushNotifications ?? true,
+        },
+        maintenance: {
+          maintenanceMode: fetchedSettings?.maintenance?.maintenanceMode ?? false,
+          maintenanceMessage: fetchedSettings?.maintenance?.maintenanceMessage ?? '',
+        },
+        autoPayout: fetchedSettings?.autoPayout ?? false,
+      };
+      
+      setSettings(safeSettings);
+      setOriginalSettings(JSON.parse(JSON.stringify(safeSettings)));
     } catch (error) {
       toast.error('Failed to fetch settings');
+      console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
     }
@@ -80,18 +141,83 @@ export default function SettingsComponent() {
       setWithdrawalPolicy(response.data);
     } catch (error) {
       toast.error('Failed to fetch withdrawal policy');
+      console.error('Error fetching withdrawal policy:', error);
     } finally {
       setPolicyLoading(false);
     }
   };
 
+  const validateSettings = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Validate withdrawal limits
+    if ((settings.withdrawalLimits?.minAmount ?? 0) < 0) {
+      errors.minAmount = 'Minimum withdrawal amount cannot be negative';
+    }
+    if ((settings.withdrawalLimits?.maxAmount ?? 0) <= 0) {
+      errors.maxAmount = 'Maximum withdrawal amount must be positive';
+    }
+    if ((settings.withdrawalLimits?.minAmount ?? 0) >= (settings.withdrawalLimits?.maxAmount ?? 0)) {
+      errors.maxAmount = 'Maximum amount must be greater than minimum amount';
+    }
+
+    // Validate deposit limits
+    if ((settings.depositLimits?.minAmount ?? 0) < 0) {
+      errors.depositMinAmount = 'Minimum deposit amount cannot be negative';
+    }
+    if ((settings.depositLimits?.maxAmount ?? 0) <= 0) {
+      errors.depositMaxAmount = 'Maximum deposit amount must be positive';
+    }
+    if ((settings.depositLimits?.minAmount ?? 0) >= (settings.depositLimits?.maxAmount ?? 0)) {
+      errors.depositMaxAmount = 'Maximum deposit amount must be greater than minimum amount';
+    }
+
+    // Validate fees
+    if ((settings.fees?.withdrawalFee ?? 0) < 0 || (settings.fees?.withdrawalFee ?? 0) > 100) {
+      errors.withdrawalFee = 'Withdrawal fee must be between 0 and 100%';
+    }
+    if ((settings.fees?.depositFee ?? 0) < 0 || (settings.fees?.depositFee ?? 0) > 100) {
+      errors.depositFee = 'Deposit fee must be between 0 and 100%';
+    }
+    if ((settings.fees?.transactionFee ?? 0) < 0 || (settings.fees?.transactionFee ?? 0) > 100) {
+      errors.transactionFee = 'Transaction fee must be between 0 and 100%';
+    }
+
+    // Validate security settings
+    if ((settings.security?.sessionTimeout ?? 24) < 1 || (settings.security?.sessionTimeout ?? 24) > 168) {
+      errors.sessionTimeout = 'Session timeout must be between 1 and 168 hours';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const updateSettings = async () => {
+    if (!validateSettings()) {
+      toast.error('Please fix validation errors before saving');
+      return;
+    }
+
     setSaving(true);
     try {
-      await api.patch(endpoints.admin.settings, settings);
-      toast.success('Settings updated successfully');
-    } catch (error) {
-      toast.error('Failed to update settings');
+      const response = await api.patch(endpoints.admin.settings, settings);
+      
+      // Update original settings to reflect the saved state
+      setOriginalSettings(JSON.parse(JSON.stringify(response.data)));
+      setHasChanges(false);
+      
+      toast.success('Settings updated successfully! All users will be affected by these changes.');
+      
+      // Show detailed success message
+      toast.success('Changes applied:', {
+        description: '• Withdrawal fees updated for all pending withdrawals\n• All users notified of changes\n• Settings saved to database',
+        duration: 5000,
+      });
+      
+    } catch (error: any) {
+      console.error('Error updating settings:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update settings';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -100,18 +226,61 @@ export default function SettingsComponent() {
   const updateWithdrawalPolicy = async (roiOnly: boolean) => {
     setPolicySaving(true);
     try {
-      await api.patch(endpoints.admin.withdrawalPolicy, { roiOnly });
-      setWithdrawalPolicy({ roiOnly });
-      toast.success('Withdrawal policy updated');
-    } catch (error) {
-      toast.error('Failed to update withdrawal policy');
+      const response = await api.patch(endpoints.admin.withdrawalPolicy, { roiOnly });
+      setWithdrawalPolicy(response.data);
+      toast.success('Withdrawal policy updated successfully');
+    } catch (error: any) {
+      console.error('Error updating withdrawal policy:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update withdrawal policy';
+      toast.error(errorMessage);
     } finally {
       setPolicySaving(false);
     }
   };
 
+  const handleSettingChange = (path: string, value: any) => {
+    // Create a completely new settings object
+    const newSettings = JSON.parse(JSON.stringify(settings));
+    const keys = path.split('.');
+    let current: any = newSettings;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+      current = current[keys[i]];
+    }
+    
+    current[keys[keys.length - 1]] = value;
+    setSettings(newSettings);
+  };
+
+  const resetToDefaults = () => {
+    const defaultSettings: PlatformSettings = {
+      withdrawalLimits: { minAmount: 1000, maxAmount: 1000000 },
+      depositLimits: { minAmount: 1000, maxAmount: 1000000 },
+      fees: { withdrawalFee: 2.5, depositFee: 0, transactionFee: 1.0 },
+      security: { requireEmailVerification: true, requirePhoneVerification: false, twoFactorAuth: false, sessionTimeout: 24 },
+      notifications: { emailNotifications: true, smsNotifications: false, pushNotifications: true },
+      maintenance: { maintenanceMode: false, maintenanceMessage: '' },
+      autoPayout: false,
+    };
+    setSettings(defaultSettings);
+    setHasChanges(true);
+    toast.info('Settings reset to defaults');
+  };
+
   if (loading) {
-    return <div className="animate-pulse space-y-4">Loading settings...</div>;
+    return (
+      <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-64 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -120,10 +289,45 @@ export default function SettingsComponent() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Platform Settings</h2>
           <p className="text-gray-600 dark:text-gray-400">Configure platform-wide settings and preferences</p>
+          {hasChanges && (
+            <div className="flex items-center mt-2 text-amber-600">
+              <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+              <span className="text-sm">You have unsaved changes</span>
+            </div>
+          )}
+          {!hasChanges && originalSettings && (
+            <div className="flex items-center mt-2 text-green-600">
+              <CheckCircleIcon className="h-4 w-4 mr-2" />
+              <span className="text-sm">All changes saved</span>
+            </div>
+          )}
         </div>
-        <Button onClick={updateSettings} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Settings'}
-        </Button>
+        <div className="flex space-x-3">
+          <Button 
+            variant="outline" 
+            onClick={resetToDefaults}
+            disabled={saving}
+          >
+            Reset to Defaults
+          </Button>
+          <Button 
+            onClick={updateSettings} 
+            disabled={saving || !hasChanges}
+            className="min-w-[120px]"
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                Save Settings
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -141,32 +345,34 @@ export default function SettingsComponent() {
                 <Label className="text-sm font-medium">Minimum Amount</Label>
                 <Input
                   type="number"
-                  value={settings.withdrawalLimits.minAmount}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    withdrawalLimits: { ...settings.withdrawalLimits, minAmount: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="h-10"
+                  value={settings.withdrawalLimits?.minAmount ?? 0}
+                  onChange={(e) => handleSettingChange('withdrawalLimits.minAmount', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.minAmount ? 'border-red-500' : ''}`}
+                  placeholder="1000"
                 />
+                {validationErrors.minAmount && (
+                  <p className="text-xs text-red-500">{validationErrors.minAmount}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Maximum Amount</Label>
                 <Input
                   type="number"
-                  value={settings.withdrawalLimits.maxAmount}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    withdrawalLimits: { ...settings.withdrawalLimits, maxAmount: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="h-10"
+                  value={settings.withdrawalLimits?.maxAmount ?? 0}
+                  onChange={(e) => handleSettingChange('withdrawalLimits.maxAmount', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.maxAmount ? 'border-red-500' : ''}`}
+                  placeholder="1000000"
                 />
+                {validationErrors.maxAmount && (
+                  <p className="text-xs text-red-500">{validationErrors.maxAmount}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-3 pt-4">
               <Switch
                 id="autoPayout"
                 checked={!!settings.autoPayout}
-                onCheckedChange={(checked) => setSettings({ ...settings, autoPayout: checked })}
+                onCheckedChange={(checked) => handleSettingChange('autoPayout', checked)}
               />
               <Label htmlFor="autoPayout" className="text-sm font-medium">Enable Auto Payout</Label>
             </div>
@@ -186,6 +392,46 @@ export default function SettingsComponent() {
           </CardContent>
         </Card>
 
+        {/* Deposit Limits */}
+        <Card className="mb-6">
+          <CardHeader className="p-6">
+            <CardTitle className="flex items-center space-x-2">
+              <ArrowTrendingUpIcon className="h-5 w-5" />
+              <span>Deposit Limits</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Minimum Amount</Label>
+                <Input
+                  type="number"
+                  value={settings.depositLimits?.minAmount ?? 0}
+                  onChange={(e) => handleSettingChange('depositLimits.minAmount', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.depositMinAmount ? 'border-red-500' : ''}`}
+                  placeholder="100"
+                />
+                {validationErrors.depositMinAmount && (
+                  <p className="text-xs text-red-500">{validationErrors.depositMinAmount}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Maximum Amount</Label>
+                <Input
+                  type="number"
+                  value={settings.depositLimits?.maxAmount ?? 0}
+                  onChange={(e) => handleSettingChange('depositLimits.maxAmount', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.depositMaxAmount ? 'border-red-500' : ''}`}
+                  placeholder="1000000"
+                />
+                {validationErrors.depositMaxAmount && (
+                  <p className="text-xs text-red-500">{validationErrors.depositMaxAmount}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Fees */}
         <Card className="mb-6">
           <CardHeader className="p-6">
@@ -201,39 +447,42 @@ export default function SettingsComponent() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={settings.fees.withdrawalFee}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    fees: { ...settings.fees, withdrawalFee: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="h-10"
+                  value={settings.fees?.withdrawalFee ?? 0}
+                  onChange={(e) => handleSettingChange('fees.withdrawalFee', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.withdrawalFee ? 'border-red-500' : ''}`}
+                  placeholder="2.5"
                 />
+                {validationErrors.withdrawalFee && (
+                  <p className="text-xs text-red-500">{validationErrors.withdrawalFee}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Deposit Fee (%)</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  value={settings.fees.depositFee}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    fees: { ...settings.fees, depositFee: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="h-10"
+                  value={settings.fees?.depositFee ?? 0}
+                  onChange={(e) => handleSettingChange('fees.depositFee', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.depositFee ? 'border-red-500' : ''}`}
+                  placeholder="0"
                 />
+                {validationErrors.depositFee && (
+                  <p className="text-xs text-red-500">{validationErrors.depositFee}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Transaction Fee (%)</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  value={settings.fees.transactionFee}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    fees: { ...settings.fees, transactionFee: parseFloat(e.target.value) || 0 }
-                  })}
-                  className="h-10"
+                  value={settings.fees?.transactionFee ?? 0}
+                  onChange={(e) => handleSettingChange('fees.transactionFee', parseFloat(e.target.value) || 0)}
+                  className={`h-10 ${validationErrors.transactionFee ? 'border-red-500' : ''}`}
+                  placeholder="1.0"
                 />
+                {validationErrors.transactionFee && (
+                  <p className="text-xs text-red-500">{validationErrors.transactionFee}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -252,44 +501,36 @@ export default function SettingsComponent() {
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Require Email Verification</Label>
                 <Switch
-                  checked={settings.security.requireEmailVerification}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    security: { ...settings.security, requireEmailVerification: checked }
-                  })}
+                  checked={settings.security?.requireEmailVerification ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('security.requireEmailVerification', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Require Phone Verification</Label>
                 <Switch
-                  checked={settings.security.requirePhoneVerification}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    security: { ...settings.security, requirePhoneVerification: checked }
-                  })}
+                  checked={settings.security?.requirePhoneVerification ?? false}
+                  onCheckedChange={(checked) => handleSettingChange('security.requirePhoneVerification', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Two-Factor Authentication</Label>
                 <Switch
-                  checked={settings.security.twoFactorAuth}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    security: { ...settings.security, twoFactorAuth: checked }
-                  })}
+                  checked={settings.security?.twoFactorAuth ?? false}
+                  onCheckedChange={(checked) => handleSettingChange('security.twoFactorAuth', checked)}
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Session Timeout (hours)</Label>
                 <Input
                   type="number"
-                  value={settings.security.sessionTimeout}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    security: { ...settings.security, sessionTimeout: parseInt(e.target.value) || 24 }
-                  })}
-                  className="h-10"
+                  value={settings.security?.sessionTimeout ?? 24}
+                  onChange={(e) => handleSettingChange('security.sessionTimeout', parseInt(e.target.value) || 24)}
+                  className={`h-10 ${validationErrors.sessionTimeout ? 'border-red-500' : ''}`}
+                  placeholder="24"
                 />
+                {validationErrors.sessionTimeout && (
+                  <p className="text-xs text-red-500">{validationErrors.sessionTimeout}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -308,31 +549,22 @@ export default function SettingsComponent() {
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Email Notifications</Label>
                 <Switch
-                  checked={settings.notifications.emailNotifications}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    notifications: { ...settings.notifications, emailNotifications: checked }
-                  })}
+                  checked={settings.notifications?.emailNotifications ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('notifications.emailNotifications', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">SMS Notifications</Label>
                 <Switch
-                  checked={settings.notifications.smsNotifications}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    notifications: { ...settings.notifications, smsNotifications: checked }
-                  })}
+                  checked={settings.notifications?.smsNotifications ?? false}
+                  onCheckedChange={(checked) => handleSettingChange('notifications.smsNotifications', checked)}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Push Notifications</Label>
                 <Switch
-                  checked={settings.notifications.pushNotifications}
-                  onCheckedChange={(checked) => setSettings({
-                    ...settings,
-                    notifications: { ...settings.notifications, pushNotifications: checked }
-                  })}
+                  checked={settings.notifications?.pushNotifications ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('notifications.pushNotifications', checked)}
                 />
               </div>
             </div>
@@ -351,23 +583,18 @@ export default function SettingsComponent() {
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Enable Maintenance Mode</Label>
               <Switch
-                checked={settings.maintenance.maintenanceMode}
-                onCheckedChange={(checked) => setSettings({
-                  ...settings,
-                  maintenance: { ...settings.maintenance, maintenanceMode: checked }
-                })}
+                checked={settings.maintenance?.maintenanceMode ?? false}
+                onCheckedChange={(checked) => handleSettingChange('maintenance.maintenanceMode', checked)}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Maintenance Message</Label>
               <Input
-                value={settings.maintenance.maintenanceMessage}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  maintenance: { ...settings.maintenance, maintenanceMessage: e.target.value }
-                })}
+                value={settings.maintenance?.maintenanceMessage ?? ''}
+                onChange={(e) => handleSettingChange('maintenance.maintenanceMessage', e.target.value)}
                 placeholder="Enter maintenance message to display to users"
                 className="h-10"
+                disabled={!settings.maintenance?.maintenanceMode}
               />
             </div>
           </CardContent>

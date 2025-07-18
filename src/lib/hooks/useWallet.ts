@@ -314,3 +314,20 @@ export const useWithdrawalSettings = () => {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }; 
+
+// Platform settings hook for deposit fees and limits
+export const usePlatformSettings = () => {
+  return useQuery({
+    queryKey: ['settings', 'platform'],
+    queryFn: async () => {
+      const response = await api.get(endpoints.admin.settings);
+      // If backend wraps in { data }, unwrap, else return as is
+      if (response.data && response.data.data) {
+        return response.data.data;
+      }
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}; 

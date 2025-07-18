@@ -58,30 +58,15 @@ interface WithdrawalStats {
   failedWithdrawals: number;
 }
 
-interface WithdrawalSettings {
-  minWithdrawalAmount: number;
-  maxWithdrawalAmount: number;
-  withdrawalFee: number;
-  processingTime: number;
-}
-
 export default function WithdrawalsComponent() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [stats, setStats] = useState<WithdrawalStats | null>(null);
-  const [settings, setSettings] = useState<WithdrawalSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     currency: 'all',
-  });
-  const [settingsForm, setSettingsForm] = useState({
-    minWithdrawalAmount: 0,
-    maxWithdrawalAmount: 0,
-    withdrawalFee: 0,
-    processingTime: 24,
   });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
@@ -93,13 +78,12 @@ export default function WithdrawalsComponent() {
     pages: 0,
   });
 
-  // Fetch withdrawals, stats, and settings
+  // Fetch withdrawals and stats
   const fetchData = async () => {
     try {
-      const [withdrawalsResponse, statsResponse, settingsResponse] = await Promise.all([
+      const [withdrawalsResponse, statsResponse] = await Promise.all([
         api.get(endpoints.admin.withdrawals, { params: { ...filters, page: pagination.page, limit: pagination.limit } }),
-        api.get(`${endpoints.admin.withdrawals}/stats`),
-        api.get(`${endpoints.admin.withdrawals}/settings`)
+        api.get(`${endpoints.admin.withdrawals}/stats`)
       ]);
       
       // Handle different possible response structures
@@ -108,7 +92,6 @@ export default function WithdrawalsComponent() {
                     withdrawalsData?.withdrawals || withdrawalsData?.data || []);
       
       setStats(statsResponse.data);
-      setSettings(settingsResponse.data);
       setPagination(withdrawalsResponse.data.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (error) {
       console.error('Failed to fetch withdrawal data:', error);
@@ -116,7 +99,6 @@ export default function WithdrawalsComponent() {
       // Set empty arrays/objects on error to prevent undefined errors
       setWithdrawals([]);
       setStats(null);
-      setSettings(null);
     } finally {
       setLoading(false);
     }
@@ -137,18 +119,6 @@ export default function WithdrawalsComponent() {
       toast.success(`Withdrawal ${status} successfully`);
     } catch (error) {
       toast.error('Failed to update withdrawal status');
-    }
-  };
-
-  // Update withdrawal settings
-  const updateSettings = async () => {
-    try {
-      await api.patch(`${endpoints.admin.withdrawals}/settings`, settingsForm);
-      setSettings(settingsForm);
-      setShowSettingsDialog(false);
-      toast.success('Withdrawal settings updated successfully');
-    } catch (error) {
-      toast.error('Failed to update withdrawal settings');
     }
   };
 
@@ -178,18 +148,6 @@ export default function WithdrawalsComponent() {
   const handleViewDetails = (withdrawal: Withdrawal) => {
     setSelectedWithdrawal(withdrawal);
     setShowDetailsDialog(true);
-  };
-
-  const handleEditSettings = () => {
-    if (settings) {
-      setSettingsForm({
-        minWithdrawalAmount: settings.minWithdrawalAmount,
-        maxWithdrawalAmount: settings.maxWithdrawalAmount,
-        withdrawalFee: settings.withdrawalFee,
-        processingTime: settings.processingTime,
-      });
-    }
-    setShowSettingsDialog(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -293,13 +251,6 @@ export default function WithdrawalsComponent() {
           <p className="text-gray-600 dark:text-gray-400">Manage withdrawal requests and settings</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleEditSettings}
-            variant="outline"
-            className="bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
-          >
-            Settings
-          </Button>
           <Button
             onClick={handleBulkPayout}
             disabled={isBulkLoading || selectedIds.length === 0}
@@ -601,34 +552,34 @@ export default function WithdrawalsComponent() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">User</Label>
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
                     {selectedWithdrawal.user
                       ? `${selectedWithdrawal.user.firstName} ${selectedWithdrawal.user.lastName}`
                       : 'Unknown User'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-white">
                     {selectedWithdrawal.user ? selectedWithdrawal.user.email : ''}
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Reference</Label>
-                  <p className="text-lg font-semibold text-gray-900">{selectedWithdrawal.reference}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{selectedWithdrawal.reference}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Amount</Label>
-                  <p className="text-lg font-semibold text-gray-900">{formatCurrency(selectedWithdrawal.amount, selectedWithdrawal.currency)}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatCurrency(selectedWithdrawal.amount, selectedWithdrawal.currency)}</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Fee</Label>
-                  <p className="text-lg font-semibold text-red-600">{formatCurrency(selectedWithdrawal.fee, selectedWithdrawal.currency)}</p>
+                  <p className="text-lg font-semibold text-red-600 dark:text-white">{formatCurrency(selectedWithdrawal.fee, selectedWithdrawal.currency)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Net Amount</Label>
-                  <p className="text-lg font-semibold text-green-600">{formatCurrency(selectedWithdrawal.netAmount, selectedWithdrawal.currency)}</p>
+                  <p className="text-lg font-semibold text-green-600 dark:text-white">{formatCurrency(selectedWithdrawal.netAmount, selectedWithdrawal.currency)}</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Method</Label>
@@ -641,9 +592,9 @@ export default function WithdrawalsComponent() {
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-gray-600">Bank Details</Label>
                   <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                    <p className="text-sm"><span className="font-medium">Bank:</span> {selectedWithdrawal.bankDetails.bankName}</p>
-                    <p className="text-sm"><span className="font-medium">Account:</span> {selectedWithdrawal.bankDetails.accountNumber}</p>
-                    <p className="text-sm"><span className="font-medium">Name:</span> {selectedWithdrawal.bankDetails.accountName}</p>
+                    <p className="text-sm text-gray-900"><span className="font-medium text-gray-700">Bank:</span> {selectedWithdrawal.bankDetails.bankName}</p>
+                    <p className="text-sm text-gray-900"><span className="font-medium text-gray-700">Account:</span> {selectedWithdrawal.bankDetails.accountNumber}</p>
+                    <p className="text-sm text-gray-900"><span className="font-medium text-gray-700">Name:</span> {selectedWithdrawal.bankDetails.accountName}</p>
                   </div>
                 </div>
               )}
@@ -651,8 +602,8 @@ export default function WithdrawalsComponent() {
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-gray-600">Crypto Details</Label>
                   <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                    <p className="text-sm"><span className="font-medium">Address:</span> {selectedWithdrawal.cryptoDetails.walletAddress}</p>
-                    <p className="text-sm"><span className="font-medium">Network:</span> {selectedWithdrawal.cryptoDetails.network}</p>
+                    <p className="text-sm text-gray-900"><span className="font-medium text-gray-700">Address:</span> {selectedWithdrawal.cryptoDetails.walletAddress}</p>
+                    <p className="text-sm text-gray-900"><span className="font-medium text-gray-700">Network:</span> {selectedWithdrawal.cryptoDetails.network}</p>
                   </div>
                 </div>
               )}
@@ -665,7 +616,7 @@ export default function WithdrawalsComponent() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Created</Label>
-                  <p className="text-lg font-semibold text-gray-900">{formatDate(selectedWithdrawal.createdAt)}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatDate(selectedWithdrawal.createdAt)}</p>
                 </div>
               </div>
               {selectedWithdrawal.notes && selectedWithdrawal.notes.length > 0 && (
@@ -683,77 +634,6 @@ export default function WithdrawalsComponent() {
           <DialogFooter className="pt-6 border-t">
             <Button variant="outline" onClick={() => setShowDetailsDialog(false)} className="h-10 px-6">
               Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Settings Dialog */}
-      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="text-xl font-semibold">Withdrawal Settings</DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2">
-              Configure withdrawal limits and fees.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="minAmount" className="text-sm font-medium">Minimum Amount</Label>
-                <Input
-                  id="minAmount"
-                  type="number"
-                  value={settingsForm.minWithdrawalAmount}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, minWithdrawalAmount: parseFloat(e.target.value) || 0 })}
-                  placeholder="Enter minimum amount"
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxAmount" className="text-sm font-medium">Maximum Amount</Label>
-                <Input
-                  id="maxAmount"
-                  type="number"
-                  value={settingsForm.maxWithdrawalAmount}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, maxWithdrawalAmount: parseFloat(e.target.value) || 0 })}
-                  placeholder="Enter maximum amount"
-                  className="h-10"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="fee" className="text-sm font-medium">Withdrawal Fee (%)</Label>
-                <Input
-                  id="fee"
-                  type="number"
-                  step="0.01"
-                  value={settingsForm.withdrawalFee}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, withdrawalFee: parseFloat(e.target.value) || 0 })}
-                  placeholder="Enter fee percentage"
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="processingTime" className="text-sm font-medium">Processing Time (hours)</Label>
-                <Input
-                  id="processingTime"
-                  type="number"
-                  value={settingsForm.processingTime}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, processingTime: parseInt(e.target.value) || 0 })}
-                  placeholder="Enter processing time"
-                  className="h-10"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="pt-6 border-t">
-            <Button variant="outline" onClick={() => setShowSettingsDialog(false)} className="h-10 px-6">
-              Cancel
-            </Button>
-            <Button onClick={updateSettings} className="h-10 px-6">
-              Save Settings
             </Button>
           </DialogFooter>
         </DialogContent>
