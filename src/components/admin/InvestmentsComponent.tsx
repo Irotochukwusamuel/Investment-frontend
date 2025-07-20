@@ -149,13 +149,21 @@ export default function InvestmentsComponent() {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string) => {
+  const formatCurrency = (amount: number | undefined | null, currency: string) => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return '₦0';
+    }
     const symbol = currency === 'naira' ? '₦' : 'USDT';
     return `${symbol}${amount.toLocaleString()}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const getFilteredInvestments = () => {
@@ -209,7 +217,7 @@ export default function InvestmentsComponent() {
                 <ChartBarIcon className="h-8 w-8 text-blue-500" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Investments</p>
-                  <p className="text-2xl font-bold">{stats.totalInvestments}</p>
+                  <p className="text-2xl font-bold">{stats.totalInvestments || 0}</p>
                 </div>
               </div>
             </CardHeader>
@@ -242,7 +250,7 @@ export default function InvestmentsComponent() {
                 <ClockIcon className="h-8 w-8 text-orange-500" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Active</p>
-                  <p className="text-2xl font-bold">{stats.activeInvestments}</p>
+                  <p className="text-2xl font-bold">{stats.activeInvestments || 0}</p>
                 </div>
               </div>
             </CardHeader>
@@ -343,14 +351,14 @@ export default function InvestmentsComponent() {
                     <TableCell className="font-medium">
                       {formatCurrency(investment.amount, investment.currency)}
                     </TableCell>
-                    <TableCell>{investment.dailyRoi}%</TableCell>
+                    <TableCell>{investment.dailyRoi || 0}%</TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(investment.earnedAmount, investment.currency)}
                     </TableCell>
                     <TableCell>{formatDate(investment.startDate)}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(investment.status)}>
-                        {investment.status}
+                      <Badge className={getStatusColor(investment.status || 'pending')}>
+                        {investment.status || 'pending'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -484,17 +492,17 @@ export default function InvestmentsComponent() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Daily ROI</Label>
-                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.dailyRoi}%</p>
+                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.dailyRoi || 0}%</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Total ROI</Label>
-                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.totalRoi}%</p>
+                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.totalRoi || 0}%</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Duration</Label>
-                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.duration} days</p>
+                  <p className="text-lg font-semibold text-gray-900">{selectedInvestment.duration || 0} days</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
@@ -520,8 +528,8 @@ export default function InvestmentsComponent() {
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-600">Status</Label>
-                  <Badge className={getStatusColor(selectedInvestment.status)}>
-                    {selectedInvestment.status}
+                  <Badge className={getStatusColor(selectedInvestment.status || 'pending')}>
+                    {selectedInvestment.status || 'pending'}
                   </Badge>
                 </div>
                 <div className="space-y-2">
