@@ -33,8 +33,8 @@ interface InvestmentPlan {
   priority: number;
   features: string[];
   terms: string[];
-  isPopular: boolean;
-  isRecommended: boolean;
+  featured: boolean;
+  popularity: number;
   totalInvestments: number;
   totalAmount: number;
   totalEarnings: number;
@@ -100,8 +100,8 @@ export default function InvestmentPlansComponent() {
     priority: 1,
     features: [] as string[],
     terms: [] as string[],
-    isPopular: false,
-    isRecommended: false,
+    featured: false,
+    popularity: 0,
   });
 
   // Plan templates
@@ -170,14 +170,42 @@ export default function InvestmentPlansComponent() {
   // Create plan
   const createPlan = async () => {
     try {
-      const response = await api.post(endpoints.admin.plans, formData);
-      setPlans([...plans, response.data]);
-      toast.success('Investment plan created successfully');
-      setShowCreateDialog(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to create investment plan');
+      // Validate form data
+      const validationErrors = validateFormData(formData);
+      if (validationErrors.length > 0) {
+        toast.error(`Validation errors: ${validationErrors.join(', ')}`);
+        return;
+      }
+
+      // Prepare data for API
+      const planData = {
+        ...formData,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        minAmount: Number(formData.minAmount),
+        maxAmount: Number(formData.maxAmount),
+        dailyRoi: Number(formData.dailyRoi),
+        totalRoi: Number(formData.totalRoi),
+        duration: Number(formData.duration),
+        priority: Number(formData.priority),
+        features: formData.features || [],
+        featured: formData.featured,
+        popularity: Number(formData.popularity),
+      };
+
+      const response = await api.post(endpoints.admin.plans, planData);
+      
+      if (response.data) {
+        setPlans([...plans, response.data]);
+        toast.success('Investment plan created successfully');
+        setShowCreateDialog(false);
+        resetForm();
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Create plan error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create investment plan';
+      toast.error(errorMessage);
     }
   };
 
@@ -186,48 +214,95 @@ export default function InvestmentPlansComponent() {
     if (!selectedPlan) return;
     
     try {
-      const response = await api.patch(`${endpoints.admin.plans}/${selectedPlan._id}`, formData);
-      setPlans(plans.map(plan => plan._id === selectedPlan._id ? response.data : plan));
-      toast.success('Investment plan updated successfully');
-      setShowEditDialog(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to update investment plan');
+      // Validate form data
+      const validationErrors = validateFormData(formData);
+      if (validationErrors.length > 0) {
+        toast.error(`Validation errors: ${validationErrors.join(', ')}`);
+        return;
+      }
+
+      // Prepare data for API
+      const planData = {
+        ...formData,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        minAmount: Number(formData.minAmount),
+        maxAmount: Number(formData.maxAmount),
+        dailyRoi: Number(formData.dailyRoi),
+        totalRoi: Number(formData.totalRoi),
+        duration: Number(formData.duration),
+        priority: Number(formData.priority),
+        features: formData.features || [],
+        featured: formData.featured,
+        popularity: Number(formData.popularity),
+      };
+
+      const response = await api.patch(`${endpoints.admin.plans}/${selectedPlan._id}`, planData);
+      
+      if (response.data) {
+        setPlans(plans.map(plan => plan._id === selectedPlan._id ? response.data : plan));
+        toast.success('Investment plan updated successfully');
+        setShowEditDialog(false);
+        resetForm();
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Update plan error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update investment plan';
+      toast.error(errorMessage);
     }
   };
 
   // Delete plan
   const deletePlan = async (id: string) => {
     try {
-      await api.delete(`${endpoints.admin.plans}/${id}`);
-      setPlans(plans.filter(plan => plan._id !== id));
-      toast.success('Investment plan deleted successfully');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to delete investment plan');
+      const response = await api.delete(`${endpoints.admin.plans}/${id}`);
+      
+      if (response.status === 204 || response.status === 200) {
+        setPlans(plans.filter(plan => plan._id !== id));
+        toast.success('Investment plan deleted successfully');
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Delete plan error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete investment plan';
+      toast.error(errorMessage);
     }
   };
 
   // Duplicate plan
   const duplicatePlan = async (plan: InvestmentPlan) => {
-    const { _id, createdAt, updatedAt, totalInvestments, totalAmount, totalEarnings, activeInvestments, completionRate, averageRating, ...duplicatedPlan } = plan;
-    
-    const planData = {
-      ...duplicatedPlan,
-      name: `${plan.name} (Copy)`,
-      status: 'inactive' as const,
-      isPopular: false,
-      isRecommended: false,
-    };
-
     try {
+      // Remove fields that shouldn't be duplicated
+      const { _id, createdAt, updatedAt, totalInvestments, totalAmount, totalEarnings, activeInvestments, completionRate, averageRating, ...duplicatedPlan } = plan;
+      
+      const planData = {
+        ...duplicatedPlan,
+        name: `${plan.name} (Copy)`,
+        status: 'inactive' as const,
+        featured: false,
+        popularity: 0,
+        // Ensure numeric fields are properly typed
+        minAmount: Number(duplicatedPlan.minAmount),
+        maxAmount: Number(duplicatedPlan.maxAmount),
+        dailyRoi: Number(duplicatedPlan.dailyRoi),
+        totalRoi: Number(duplicatedPlan.totalRoi),
+        duration: Number(duplicatedPlan.duration),
+        priority: Number(duplicatedPlan.priority || 1),
+        features: duplicatedPlan.features || [],
+      };
+
       const response = await api.post(endpoints.admin.plans, planData);
-      setPlans([...plans, response.data]);
-      toast.success('Investment plan duplicated successfully');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to duplicate investment plan');
+      
+      if (response.data) {
+        setPlans([...plans, response.data]);
+        toast.success('Investment plan duplicated successfully');
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Duplicate plan error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to duplicate investment plan';
+      toast.error(errorMessage);
     }
   };
 
@@ -236,11 +311,16 @@ export default function InvestmentPlansComponent() {
     const newStatus = plan.status === 'archived' ? 'inactive' : 'archived';
     try {
       const response = await api.patch(`${endpoints.admin.plans}/${plan._id}`, { status: newStatus });
-      setPlans(plans.map(p => p._id === plan._id ? response.data : p));
-      toast.success(`Plan ${newStatus === 'archived' ? 'archived' : 'unarchived'} successfully`);
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to update plan status');
+      
+      if (response.data) {
+        setPlans(plans.map(p => p._id === plan._id ? response.data : p));
+        toast.success(`Plan ${newStatus === 'archived' ? 'archived' : 'unarchived'} successfully`);
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error('Toggle archive error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update plan status';
+      toast.error(errorMessage);
     }
   };
 
@@ -259,8 +339,8 @@ export default function InvestmentPlansComponent() {
       priority: 1,
       features: template.features || [],
       terms: template.terms || [],
-      isPopular: false,
-      isRecommended: false,
+      featured: false,
+      popularity: 0,
     });
     setShowTemplatesDialog(false);
     setShowCreateDialog(true);
@@ -281,28 +361,35 @@ export default function InvestmentPlansComponent() {
       priority: 1,
       features: [],
       terms: [],
-      isPopular: false,
-      isRecommended: false,
+      featured: false,
+      popularity: 0,
     });
   };
 
   // Handle form changes
   const handleFormChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Convert numeric fields to proper types
+    if (['minAmount', 'maxAmount', 'dailyRoi', 'totalRoi', 'duration', 'priority', 'popularity'].includes(field)) {
+      const numValue = value === '' ? 0 : parseFloat(value);
+      if (isNaN(numValue)) return; // Don't update if invalid number
+      setFormData(prev => ({ ...prev, [field]: numValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   // Add feature/term
   const addFeature = () => {
     const feature = prompt('Enter feature:');
-    if (feature) {
-      setFormData(prev => ({ ...prev, features: [...(prev.features || []), feature] }));
+    if (feature && feature.trim()) {
+      setFormData(prev => ({ ...prev, features: [...(prev.features || []), feature.trim()] }));
     }
   };
 
   const addTerm = () => {
     const term = prompt('Enter term:');
-    if (term) {
-      setFormData(prev => ({ ...prev, terms: [...(prev.terms || []), term] }));
+    if (term && term.trim()) {
+      setFormData(prev => ({ ...prev, terms: [...(prev.terms || []), term.trim()] }));
     }
   };
 
@@ -313,6 +400,53 @@ export default function InvestmentPlansComponent() {
 
   const removeTerm = (index: number) => {
     setFormData(prev => ({ ...prev, terms: (prev.terms || []).filter((_, i) => i !== index) }));
+  };
+
+  // Validate form data
+  const validateFormData = (data: any) => {
+    const errors: string[] = [];
+    
+    if (!data.name || data.name.trim() === '') {
+      errors.push('Plan name is required');
+    }
+    
+    if (!data.description || data.description.trim() === '') {
+      errors.push('Description is required');
+    }
+    
+    if (data.minAmount <= 0) {
+      errors.push('Minimum amount must be greater than 0');
+    }
+    
+    if (data.maxAmount <= 0) {
+      errors.push('Maximum amount must be greater than 0');
+    }
+    
+    if (data.maxAmount <= data.minAmount) {
+      errors.push('Maximum amount must be greater than minimum amount');
+    }
+    
+    if (data.dailyRoi <= 0) {
+      errors.push('Daily ROI must be greater than 0');
+    }
+    
+    if (data.totalRoi <= 0) {
+      errors.push('Total ROI must be greater than 0');
+    }
+    
+    if (data.duration <= 0) {
+      errors.push('Duration must be greater than 0');
+    }
+    
+    if (data.priority <= 0) {
+      errors.push('Priority must be greater than 0');
+    }
+    
+    if (data.popularity < 0 || data.popularity > 100) {
+      errors.push('Popularity must be between 0 and 100');
+    }
+    
+    return errors;
   };
 
   const handleCreatePlan = () => {
@@ -335,8 +469,8 @@ export default function InvestmentPlansComponent() {
       priority: plan.priority,
       features: plan.features || [],
       terms: plan.terms || [],
-      isPopular: plan.isPopular,
-      isRecommended: plan.isRecommended,
+      featured: plan.featured,
+      popularity: plan.popularity,
     });
     setShowEditDialog(true);
   };
@@ -606,8 +740,7 @@ export default function InvestmentPlansComponent() {
                           <p className="font-medium">{plan.name}</p>
                           <p className="text-sm text-gray-500">{plan.description}</p>
                           <div className="flex space-x-1 mt-1">
-                            {plan.isPopular && <Badge key="popular" variant="secondary" className="text-xs">Popular</Badge>}
-                            {plan.isRecommended && <Badge key="recommended" variant="secondary" className="text-xs">Recommended</Badge>}
+                            {plan.featured && <Badge key="featured" variant="secondary" className="text-xs">Featured</Badge>}
                           </div>
                         </div>
                       </TableCell>
@@ -799,7 +932,7 @@ export default function InvestmentPlansComponent() {
                     id="minAmount"
                     type="number"
                     value={formData.minAmount}
-                    onChange={(e) => handleFormChange('minAmount', parseFloat(e.target.value))}
+                    onChange={(e) => handleFormChange('minAmount', e.target.value)}
                     placeholder="0"
                     className="h-10"
                   />
@@ -810,7 +943,7 @@ export default function InvestmentPlansComponent() {
                     id="maxAmount"
                     type="number"
                     value={formData.maxAmount}
-                    onChange={(e) => handleFormChange('maxAmount', parseFloat(e.target.value))}
+                    onChange={(e) => handleFormChange('maxAmount', e.target.value)}
                     placeholder="0"
                     className="h-10"
                   />
@@ -824,7 +957,7 @@ export default function InvestmentPlansComponent() {
                     type="number"
                     step="0.01"
                     value={formData.dailyRoi}
-                    onChange={(e) => handleFormChange('dailyRoi', parseFloat(e.target.value))}
+                    onChange={(e) => handleFormChange('dailyRoi', e.target.value)}
                     placeholder="0.00"
                     className="h-10"
                   />
@@ -836,7 +969,7 @@ export default function InvestmentPlansComponent() {
                     type="number"
                     step="0.01"
                     value={formData.totalRoi}
-                    onChange={(e) => handleFormChange('totalRoi', parseFloat(e.target.value))}
+                    onChange={(e) => handleFormChange('totalRoi', e.target.value)}
                     placeholder="0.00"
                     className="h-10"
                   />
@@ -848,7 +981,7 @@ export default function InvestmentPlansComponent() {
                   id="duration"
                   type="number"
                   value={formData.duration}
-                  onChange={(e) => handleFormChange('duration', parseInt(e.target.value))}
+                  onChange={(e) => handleFormChange('duration', e.target.value)}
                   placeholder="30"
                   className="h-10"
                 />
@@ -921,7 +1054,7 @@ export default function InvestmentPlansComponent() {
                     id="priority"
                     type="number"
                     value={formData.priority}
-                    onChange={(e) => handleFormChange('priority', parseInt(e.target.value))}
+                    onChange={(e) => handleFormChange('priority', e.target.value)}
                     placeholder="1"
                     className="h-10"
                   />
@@ -930,19 +1063,22 @@ export default function InvestmentPlansComponent() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <Switch
-                    id="isPopular"
-                    checked={formData.isPopular}
-                    onCheckedChange={(checked) => handleFormChange('isPopular', checked)}
+                    id="featured"
+                    checked={formData.featured}
+                    onCheckedChange={(checked) => handleFormChange('featured', checked)}
                   />
-                  <Label htmlFor="isPopular" className="text-sm font-medium">Mark as Popular</Label>
+                  <Label htmlFor="featured" className="text-sm font-medium">Mark as Featured</Label>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Switch
-                    id="isRecommended"
-                    checked={formData.isRecommended}
-                    onCheckedChange={(checked) => handleFormChange('isRecommended', checked)}
+                  <Label htmlFor="popularity" className="text-sm font-medium">Popularity (%)</Label>
+                  <Input
+                    id="popularity"
+                    type="number"
+                    value={formData.popularity}
+                    onChange={(e) => handleFormChange('popularity', e.target.value)}
+                    placeholder="0"
+                    className="h-10"
                   />
-                  <Label htmlFor="isRecommended" className="text-sm font-medium">Mark as Recommended</Label>
                 </div>
               </div>
             </TabsContent>

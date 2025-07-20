@@ -136,6 +136,8 @@ export const endpoints = {
     roiSettings: '/admin/plans/roi-settings',
     roiStats: '/admin/plans/roi-stats',
     withdrawalPolicy: '/admin/settings/withdrawal-policy',
+    cleanupOrphanedData: '/admin/cleanup-orphaned-data',
+    processMissingReferralBonuses: '/admin/process-missing-referral-bonuses',
   },
   
   // Notices (public)

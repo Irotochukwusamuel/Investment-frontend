@@ -251,6 +251,32 @@ export default function UserManagementComponent() {
     }
   };
 
+  // Cleanup orphaned data
+  const cleanupOrphanedData = async () => {
+    try {
+      const response = await api.post(endpoints.admin.cleanupOrphanedData);
+      toast.success(`Cleanup completed: ${response.data.deletedWallets} wallets, ${response.data.deletedInvestments} investments, ${response.data.deletedWithdrawals} withdrawals removed`);
+      fetchData(); // Refresh the data
+    } catch (error: any) {
+      console.error('Cleanup error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to cleanup orphaned data';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Process missing referral bonuses
+  const processMissingReferralBonuses = async () => {
+    try {
+      const response = await api.post(endpoints.admin.processMissingReferralBonuses);
+      toast.success(`Processed ${response.data.processedCount} missing referral bonuses totaling ${response.data.totalBonusAmount} ${response.data.currency}`);
+      fetchData(); // Refresh the data
+    } catch (error: any) {
+      console.error('Process missing referral bonuses error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to process missing referral bonuses';
+      toast.error(errorMessage);
+    }
+  };
+
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
     setShowDetailsDialog(true);
@@ -347,6 +373,14 @@ export default function UserManagementComponent() {
           <p className="text-gray-600 dark:text-gray-400">Manage platform users and their accounts</p>
         </div>
         <div className="flex space-x-2">
+          <Button onClick={cleanupOrphanedData} variant="outline" size="sm" className="text-orange-600 hover:text-orange-700">
+            <TrashIcon className="h-4 w-4 mr-2" />
+            Cleanup Orphaned Data
+          </Button>
+          <Button onClick={processMissingReferralBonuses} variant="outline" size="sm" className="text-yellow-600 hover:text-yellow-700">
+            <Cog6ToothIcon className="h-4 w-4 mr-2" />
+            Process Missing Referrals
+          </Button>
           <Button onClick={() => exportUsers('csv')} variant="outline" size="sm">
             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
             Export CSV
