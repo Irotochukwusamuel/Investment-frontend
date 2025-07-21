@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "@/lib/providers";
+import MaintenanceBlocker from "@/components/MaintenanceBlocker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -62,16 +63,13 @@ export default function RootLayout({
                 const vh = window.innerHeight * 0.01;
                 document.documentElement.style.setProperty('--vh', vh + 'px');
               }
-              
               // Set initial viewport height
               setVH();
-              
               // Update on resize and orientation change
               window.addEventListener('resize', setVH);
               window.addEventListener('orientationchange', () => {
                 setTimeout(setVH, 100);
               });
-              
               // Prevent zoom on input focus (iOS)
               document.addEventListener('DOMContentLoaded', function() {
                 const inputs = document.querySelectorAll('input, textarea, select');
@@ -83,7 +81,6 @@ export default function RootLayout({
                   });
                 });
               });
-              
               // Prevent double-tap zoom
               let lastTouchEnd = 0;
               document.addEventListener('touchend', function(event) {
@@ -100,9 +97,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-50 font-sans mobile-optimized">
         <Providers>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-            <div className="mobile-optimized">
-              {children}
-            </div>
+            <MaintenanceBlocker>
+              <div className="mobile-optimized">
+                {children}
+              </div>
+            </MaintenanceBlocker>
             <Toaster 
               position="top-center"
               richColors
