@@ -94,7 +94,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-gray-50 font-sans mobile-optimized">
+      <body className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans mobile-optimized">
         <Providers>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             <MaintenanceBlocker>

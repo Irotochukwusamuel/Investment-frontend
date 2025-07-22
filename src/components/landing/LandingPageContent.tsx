@@ -26,6 +26,7 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence, animate, useMotionValue, useTransform } from 'framer-motion'
 import LandingLayout from './LandingLayout'
 import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
+import { useInvestmentPlans } from '@/lib/hooks/useInvestments'
 
 const features = [
   {
@@ -59,22 +60,6 @@ const features = [
     icon: BuildingOfficeIcon,
   },
 ]
-
-const usdtInvestmentPlans = [
-  { name: 'Cadet', min: 5, max: 20, dailyROI: 5.0, welcomeBonus: 2.5, referralBonus: 3.5 },
-  { name: 'Captain', min: 21, max: 35, dailyROI: 5.8, welcomeBonus: 3.0, referralBonus: 4.0 },
-  { name: 'General', min: 36, max: 50, dailyROI: 6.25, welcomeBonus: 3.5, referralBonus: 4.5 },
-  { name: 'Vanguard', min: 51, max: 99, dailyROI: 6.7, welcomeBonus: 4.0, referralBonus: 5.0 },
-  { name: 'Admiral', min: 100, max: 150, dailyROI: 7.1, welcomeBonus: 4.5, referralBonus: 6.0 },
-];
-
-const nairaInvestmentPlans = [
-  { name: 'Cadet', min: 5000, max: 25000, dailyROI: 5.0, welcomeBonus: 2.5, referralBonus: 3.5 },
-  { name: 'Captain', min: 26000, max: 35000, dailyROI: 5.8, welcomeBonus: 3.0, referralBonus: 4.0 },
-  { name: 'General', min: 36000, max: 45000, dailyROI: 6.25, welcomeBonus: 3.5, referralBonus: 4.5 },
-  { name: 'Vanguard', min: 46000, max: 55000, dailyROI: 6.7, welcomeBonus: 4.0, referralBonus: 5.0 },
-  { name: 'Admiral', min: 156000, max: 250000, dailyROI: 7.1, welcomeBonus: 4.5, referralBonus: 6.0 },
-];
 
 const howItWorks = [
   {
@@ -141,7 +126,8 @@ const faqs = [
 
 export default function LandingPageContent() {
   const { data: usdtSettings } = useUsdtSettings()
-  
+  const { data: investmentPlans } = useInvestmentPlans()
+
   const AnimatedCounter = ({ value, precision = 0 }: { value: number; precision?: number }) => {
     const count = useMotionValue(0)
     const rounded = useTransform(count, (latest) => latest.toFixed(precision))
@@ -156,15 +142,21 @@ export default function LandingPageContent() {
 
   const InvestmentCalculator = () => {
     const [currency, setCurrency] = useState<'usdt' | 'naira'>(usdtSettings?.usdtInvestmentEnabled ? 'usdt' : 'naira');
-    const investmentPlans = currency === 'usdt' ? usdtInvestmentPlans : nairaInvestmentPlans;
-    const minAmount = investmentPlans[0].min;
-    const maxAmount = investmentPlans[investmentPlans.length - 1].max;
+    
+    // Use real investment plans from API
+    const plans = investmentPlans?.filter(plan => plan.currency === currency) || [];
+    const minAmount = plans.length > 0 ? Math.min(...plans.map(p => p.minAmount)) : 0;
+    const maxAmount = plans.length > 0 ? Math.max(...plans.map(p => p.maxAmount)) : 0;
 
     const [amount, setAmount] = useState(currency === 'usdt' ? 50 : 50000);
 
     useEffect(() => {
-      setAmount(currency === 'usdt' ? usdtInvestmentPlans[2].min : nairaInvestmentPlans[2].min);
-    }, [currency]);
+      if (plans.length > 0) {
+        // Set to middle plan's min amount
+        const middlePlan = plans[Math.floor(plans.length / 2)];
+        setAmount(middlePlan.minAmount);
+      }
+    }, [currency, plans]);
 
     useEffect(() => {
       if (!usdtSettings?.usdtInvestmentEnabled && currency === 'usdt') {
@@ -186,12 +178,12 @@ export default function LandingPageContent() {
     const handleBlur = () => {
       if (amount === 0) return;
 
-      const selectedPlan = [...investmentPlans].reverse().find(p => amount >= p.min);
+      const selectedPlan = [...plans].reverse().find(p => amount >= p.minAmount);
 
       if (!selectedPlan) {
         setAmount(minAmount);
-      } else if (amount > selectedPlan.max) {
-        setAmount(selectedPlan.max);
+      } else if (amount > selectedPlan.maxAmount) {
+        setAmount(selectedPlan.maxAmount);
       } else if (amount < minAmount) {
         setAmount(minAmount);
       }
@@ -201,9 +193,9 @@ export default function LandingPageContent() {
       setAmount(value[0]);
     };
 
-    const plan = [...investmentPlans].reverse().find(p => amount >= p.min);
+    const plan = [...plans].reverse().find(p => amount >= p.minAmount);
 
-    const dailyReturn = plan ? amount * (plan.dailyROI / 100) : 0;
+    const dailyReturn = plan ? amount * (plan.dailyRoi / 100) : 0;
     const hourlyReturn = dailyReturn / 24;
     const monthlyReturn = dailyReturn * 30;
     const welcomeBonusValue = plan ? amount * (plan.welcomeBonus / 100) : 0;

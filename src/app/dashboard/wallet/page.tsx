@@ -835,40 +835,30 @@ export default function WalletPage() {
       />
 
       {/* NGN Withdraw Dialog */}
-      <Dialog open={showNgnWithdrawDialog} onOpenChange={setShowNgnWithdrawDialog}>
-        <DialogContent className="w-[50vw] max-h-[90vh] overflow-y-auto">
-          <DialogTitle className="sr-only">Withdraw NGN</DialogTitle>
-          <WithdrawalDialog
-            key="withdraw-ngn"
-            open={showNgnWithdrawDialog}
-            onOpenChange={setShowNgnWithdrawDialog}
-            onSuccess={() => {
-              toast.success('Withdrawal request submitted successfully!');
-              setShowNgnWithdrawDialog(false);
-            }}
-            currency="naira"
-            initialAmount={walletBalances.find(b => b.currency === 'NGN')?.amount?.toString() || '0'}
-          />
-        </DialogContent>
-      </Dialog>
+      <WithdrawalDialog
+        key="withdraw-ngn"
+        open={showNgnWithdrawDialog}
+        onOpenChange={setShowNgnWithdrawDialog}
+        onSuccess={() => {
+          toast.success('Withdrawal request submitted successfully!');
+          setShowNgnWithdrawDialog(false);
+        }}
+        currency="naira"
+        initialAmount={walletBalances.find(b => b.currency === 'NGN')?.amount?.toString() || '0'}
+      />
 
       {/* USDT Withdraw Dialog */}
-      <Dialog open={showUsdtWithdrawDialog} onOpenChange={setShowUsdtWithdrawDialog}>
-        <DialogContent className="w-[50vw] max-h-[90vh] overflow-y-auto">
-          <DialogTitle className="sr-only">Withdraw USDT</DialogTitle>
-          <WithdrawalDialog
-            key="withdraw-usdt"
-            open={showUsdtWithdrawDialog}
-            onOpenChange={setShowUsdtWithdrawDialog}
-            onSuccess={() => {
-              toast.success('Withdrawal request submitted successfully!');
-              setShowUsdtWithdrawDialog(false);
-            }}
-            currency="usdt"
-            initialAmount={walletBalances.find(b => b.currency === 'USDT')?.amount?.toString() || '0'}
-          />
-        </DialogContent>
-      </Dialog>
+      <WithdrawalDialog
+        key="withdraw-usdt"
+        open={showUsdtWithdrawDialog}
+        onOpenChange={setShowUsdtWithdrawDialog}
+        onSuccess={() => {
+          toast.success('Withdrawal request submitted successfully!');
+          setShowUsdtWithdrawDialog(false);
+        }}
+        currency="usdt"
+        initialAmount={walletBalances.find(b => b.currency === 'USDT')?.amount?.toString() || '0'}
+      />
 
       {/* USDT Deposit Dialog */}
       <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
@@ -979,7 +969,7 @@ export default function WalletPage() {
                   </>
                 ) : (
                   <>
-                    <Alert className="bg-green-50 border-green-200">
+                    <Alert className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
                       <CheckCircleIcon className="h-4 w-4 text-green-600" />
                       <AlertTitle className="text-green-800 font-semibold">Proof of Payment</AlertTitle>
                       <AlertDescription className="text-green-700">

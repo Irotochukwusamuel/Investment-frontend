@@ -182,13 +182,13 @@ export function WithdrawalDialog({
   if (settingsLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900">
           <DialogHeader>
             <DialogTitle>Loading Withdrawal Settings</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            <span className="ml-2">Loading withdrawal settings...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+            <span className="ml-2 text-gray-900 dark:text-gray-100">Loading withdrawal settings...</span>
           </div>
         </DialogContent>
       </Dialog>
@@ -197,13 +197,13 @@ export function WithdrawalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[175px] md:max-w-[200px] lg:max-w-[225px] w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-red-600" />
+      <DialogContent className="sm:max-w-[400px] md:max-w-[450px] lg:max-w-[500px] w-[95vw] max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
+            <Wallet className="h-6 w-6 text-red-600" />
             Withdraw {currency === 'naira' ? 'NGN' : 'USDT'}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
             {step === 'amount' && 'Enter the amount you want to withdraw'}
             {step === 'confirm' && 'Confirm your withdrawal details'}
             {step === 'success' && 'Your withdrawal request has been submitted'}
@@ -220,8 +220,8 @@ export function WithdrawalDialog({
               transition={{ duration: 0.3 }}
               className="space-y-4"
             >
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount ({currency === 'naira' ? 'NGN' : 'USDT'})</Label>
+              <div className="space-y-3">
+                <Label htmlFor="amount" className="text-base font-medium">Amount ({currency === 'naira' ? 'NGN' : 'USDT'})</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -231,9 +231,9 @@ export function WithdrawalDialog({
                   min={minWithdrawal}
                   max={maxWithdrawal}
                   step={currency === 'naira' ? '100' : '1'}
-                  className="text-lg"
+                  className="text-lg sm:text-xl h-12"
                 />
-                <div className="flex justify-between text-sm text-gray-500">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1 text-sm text-gray-500">
                   <span>Available: {formatCurrency(availableBalance)}</span>
                   <span>Min: {formatCurrency(minWithdrawal)}</span>
                   <span>Max: {formatCurrency(maxWithdrawal)}</span>
@@ -242,21 +242,21 @@ export function WithdrawalDialog({
               </div>
 
               {amount && parseFloat(amount) >= minWithdrawal && (
-                <Card className="bg-gray-50">
-                  <CardContent className="p-4">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Withdrawal Amount</span>
-                        <span className="font-medium">{formatCurrency(parseFloat(amount))}</span>
+                <Card className="bg-gray-50 dark:bg-gray-800/50">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">Withdrawal Amount</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-lg">{formatCurrency(parseFloat(amount))}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Processing Fee ({withdrawalFee}%)</span>
-                        <span className="font-medium">{formatCurrency(fee)}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">Processing Fee ({withdrawalFee}%)</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-lg">{formatCurrency(fee)}</span>
                       </div>
-                      <Separator />
-                      <div className="flex justify-between font-semibold">
-                        <span>You'll Receive</span>
-                        <span className="text-green-600">{formatCurrency(netAmount)}</span>
+                      <Separator className="my-3" />
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-gray-900 dark:text-gray-100 font-bold text-lg">You'll Receive</span>
+                        <span className="text-green-600 dark:text-green-400 font-bold text-xl">{formatCurrency(netAmount)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -266,29 +266,29 @@ export function WithdrawalDialog({
               {/* Bank Details Preview */}
               {bankLoading ? (
                 <div className="animate-pulse">
-                  <div className="h-20 bg-gray-200 rounded-lg"></div>
+                  <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                 </div>
               ) : bankDetails ? (
-                <Card className="border-green-200 bg-green-50">
+                <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                       Withdrawal Account
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Bank</span>
-                        <span className="font-medium">{bankDetails.bankName}</span>
+                    <div className="space-y-2 text-sm sm:text-base">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">Bank</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{bankDetails.bankName}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Account</span>
-                        <span className="font-medium">{bankDetails.accountNumber}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">Account</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 font-mono">{bankDetails.accountNumber}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Name</span>
-                        <span className="font-medium">{bankDetails.accountName}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">Name</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-right max-w-[60%]">{bankDetails.accountName}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -309,18 +309,18 @@ export function WithdrawalDialog({
                 </AlertDescription>
               </Alert>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   onClick={handleClose}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 h-12 text-base font-medium"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleAmountSubmit}
                   disabled={!amount || parseFloat(amount) < minWithdrawal || !bankDetails}
-                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  className="flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700"
                 >
                   Continue
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -338,7 +338,7 @@ export function WithdrawalDialog({
               transition={{ duration: 0.3 }}
               className="space-y-4"
             >
-              <Card className="border-red-200 bg-red-50">
+              <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-red-600" />
@@ -348,36 +348,36 @@ export function WithdrawalDialog({
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Amount</span>
-                      <span className="font-semibold">{formatCurrency(parseFloat(amount))}</span>
+                      <span className="text-gray-700 dark:text-gray-300">Amount</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(parseFloat(amount))}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Processing Fee ({withdrawalFee}%)</span>
-                      <span className="font-semibold">{formatCurrency(fee)}</span>
+                      <span className="text-gray-700 dark:text-gray-300">Processing Fee ({withdrawalFee}%)</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(fee)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
-                      <span>You'll Receive</span>
-                      <span className="text-green-600">{formatCurrency(netAmount)}</span>
+                      <span className="text-gray-900 dark:text-gray-100">You'll Receive</span>
+                      <span className="text-green-600 dark:text-green-400">{formatCurrency(netAmount)}</span>
                     </div>
                   </div>
 
                   <Separator />
 
                   <div className="space-y-2">
-                    <h4 className="font-semibold">Bank Details</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100">Bank Details</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Bank</span>
-                        <span>{bankDetails?.bankName}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Bank</span>
+                        <span className="text-gray-900 dark:text-gray-100">{bankDetails?.bankName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Account</span>
-                        <span>{bankDetails?.accountNumber}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Account</span>
+                        <span className="text-gray-900 dark:text-gray-100">{bankDetails?.accountNumber}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Name</span>
-                        <span>{bankDetails?.accountName}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Name</span>
+                        <span className="text-gray-900 dark:text-gray-100">{bankDetails?.accountName}</span>
                       </div>
                     </div>
                   </div>

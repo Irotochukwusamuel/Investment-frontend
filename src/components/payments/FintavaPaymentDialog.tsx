@@ -363,9 +363,9 @@ export function FintavaPaymentDialog({ open, onOpenChange, onSuccess, initialAmo
                   </Button>
                 )}
                 {isListening && (
-                  <div className="flex flex-col items-center gap-3 mt-2 p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                  <div className="flex flex-col items-center gap-3 mt-2 p-4 border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                     <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
-                    <p className="text-blue-700 font-medium">{processingMsg || 'Processing your transaction...'}</p>
+                    <p className="text-blue-700 dark:text-blue-300 font-medium">{processingMsg || 'Processing your transaction...'}</p>
                     <Button
                       variant="outline"
                       onClick={() => { setIsListening(false); setProcessingMsg(''); }}
@@ -388,17 +388,17 @@ export function FintavaPaymentDialog({ open, onOpenChange, onSuccess, initialAmo
               transition={{ duration: 0.3 }}
               className="space-y-4"
             >
-              <Card className="border-2 border-green-200 bg-green-50 py-5">
+              <Card className="border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 py-5">
                 <CardContent className="text-center">
                   <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-green-800 mb-2">
+                  <h3 className="text-xl font-semibold text-green-800 dark:text-green-200 mb-2">
                     Payment Successful!
                   </h3>
-                  <p className="text-green-700 mb-4">
+                  <p className="text-green-700 dark:text-green-300 mb-4">
                     Your deposit of ₦{amount ? parseFloat(amount).toLocaleString() : '0'} has been confirmed 
                     and your wallet has been credited.
                   </p>
-                  <p className="text-sm text-green-600">
+                  <p className="text-sm text-green-600 dark:text-green-400">
                     This dialog will close automatically in a few seconds.
                   </p>
                 </CardContent>

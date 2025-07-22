@@ -67,7 +67,7 @@ export function InvestmentConfirmationModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />

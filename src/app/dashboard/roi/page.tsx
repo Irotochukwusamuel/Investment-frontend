@@ -415,12 +415,16 @@ export default function RoiPage() {
                               <SparklesIcon className="h-4 w-4 text-yellow-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <span>5% of your first investment</span>
+                              <span>Plan-specific welcome bonus from your investments</span>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </span>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">5%</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        {investments && investments.length > 0 
+                          ? `${investments[0]?.plan?.welcomeBonus || 0}%` 
+                          : '0%'}
+                      </span>
                     </div>
                   </div>
                   <div className="mt-4 flex flex-col gap-2 items-center">

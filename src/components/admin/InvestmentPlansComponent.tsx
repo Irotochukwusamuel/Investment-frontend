@@ -43,6 +43,8 @@ interface InvestmentPlan {
   averageRating: number;
   createdAt: string;
   updatedAt: string;
+  welcomeBonus: number;
+  referralBonus: number;
 }
 
 interface PlanStats {
@@ -724,11 +726,12 @@ export default function InvestmentPlansComponent() {
                   <TableRow>
                     <TableHead>Plan Name</TableHead>
                     <TableHead>Currency</TableHead>
-                    <TableHead>Amount Range</TableHead>
+                    <TableHead>Investment Range</TableHead>
                     <TableHead>ROI</TableHead>
                     <TableHead>Duration</TableHead>
+                    <TableHead>Welcome Bonus</TableHead>
+                    <TableHead>Referral Bonus</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Performance</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -768,15 +771,19 @@ export default function InvestmentPlansComponent() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(plan.status)}>
-                          {plan.status}
-                        </Badge>
+                        <div className="text-sm">
+                          <p className="font-medium text-yellow-600">{plan.welcomeBonus}%</p>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{plan.activeInvestments} active</p>
-                          <p className="text-gray-500">{plan.completionRate}% completion</p>
+                          <p className="font-medium text-blue-600">{plan.referralBonus}%</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(plan.status)}>
+                          {plan.status}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">

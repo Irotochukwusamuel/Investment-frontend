@@ -19,6 +19,8 @@ import {
   ShieldCheckIcon,
   FireIcon,
   TrophyIcon,
+  SparklesIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -476,6 +478,24 @@ export default function InvestmentsPage() {
                             </div>
                           </div>
 
+                          {/* Bonus Information */}
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                            <div>
+                              <p className="text-sm text-gray-500 flex items-center gap-1">
+                                <SparklesIcon className="h-3 w-3 text-yellow-500" />
+                                Welcome Bonus
+                              </p>
+                              <p className="font-semibold text-yellow-600">{plan.welcomeBonus}%</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500 flex items-center gap-1">
+                                <GiftIcon className="h-3 w-3 text-blue-500" />
+                                Referral Bonus
+                              </p>
+                              <p className="font-semibold text-blue-600">{plan.referralBonus}%</p>
+                            </div>
+                          </div>
+
                           <Separator />
 
                           <div className="space-y-2">
@@ -522,7 +542,7 @@ export default function InvestmentsPage() {
                               </DialogHeader>
 
                                 <div className="space-y-6">
-                                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                     <div>
                                       <p className="text-sm text-gray-500">Daily ROI</p>
                                       <p className="font-semibold text-green-600">{plan.dailyRoi}%</p>
@@ -541,6 +561,24 @@ export default function InvestmentsPage() {
                                     </div>
                                   </div>
 
+                                  {/* Bonus Information */}
+                                  <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                                    <div>
+                                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                                        <SparklesIcon className="h-3 w-3 text-yellow-500" />
+                                        Welcome Bonus
+                                      </p>
+                                      <p className="font-semibold text-yellow-600">{plan.welcomeBonus}%</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                                        <GiftIcon className="h-3 w-3 text-blue-500" />
+                                        Referral Bonus
+                                      </p>
+                                      <p className="font-semibold text-blue-600">{plan.referralBonus}%</p>
+                                    </div>
+                                  </div>
+
                                   <div className="space-y-4">
                                 <div>
                                       <Label htmlFor="amount" className='mb-2'>Investment Amount</Label>
@@ -556,8 +594,8 @@ export default function InvestmentsPage() {
                                   </div>
 
                                     {investmentAmount && (
-                                      <div className="p-4 bg-blue-50 rounded-lg">
-                                        <h4 className="font-semibold text-blue-900 mb-2">Investment Summary</h4>
+                                      <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                                        <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Investment Summary</h4>
                                         <div className="space-y-1 text-sm">
                                           <div className="flex justify-between">
                                             <span>Investment Amount:</span>
@@ -575,8 +613,26 @@ export default function InvestmentsPage() {
                                               {formatCurrency(calculateProjectedEarnings(parseFloat(investmentAmount) || 0, plan.dailyRoi, plan.duration), plan.currency)}
                                             </span>
                                           </div>
+                                          <div className="flex justify-between pt-2 border-t">
+                                            <span className="flex items-center gap-1">
+                                              <SparklesIcon className="h-3 w-3 text-yellow-500" />
+                                              Welcome Bonus:
+                                            </span>
+                                            <span className="font-medium text-yellow-600">
+                                              {formatCurrency(((parseFloat(investmentAmount) || 0) * plan.welcomeBonus) / 100, plan.currency)}
+                                            </span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="flex items-center gap-1">
+                                              <GiftIcon className="h-3 w-3 text-blue-500" />
+                                              Referral Bonus (for referrer):
+                                            </span>
+                                            <span className="font-medium text-blue-600">
+                                              {formatCurrency(((parseFloat(investmentAmount) || 0) * plan.referralBonus) / 100, plan.currency)}
+                                            </span>
+                                          </div>
                                         </div>
-                                </div>
+                                      </div>
                                     )}
 
                                     <div className="flex items-center space-x-2">
