@@ -649,6 +649,24 @@ export default function SettingsComponent() {
                 After this period, bonuses can be withdrawn anytime.
               </p>
             </div>
+            <div className="pt-4">
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  try {
+                    const res = await api.post('/admin/referrals/fix-all-stats');
+                    toast.success(`Referral stats updated for ${res.data.updated} users!`);
+                  } catch (e: any) {
+                    toast.error('Failed to update referral stats');
+                  }
+                }}
+              >
+                Run One-Time Referral Stats Fix
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">
+                This will update referral earnings and investment stats for all users and their referred users. Use only if you notice referral earnings are out of sync.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

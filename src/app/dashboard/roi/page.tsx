@@ -132,6 +132,10 @@ export default function RoiPage() {
     return sum;
   }, 0) || 0;
 
+  // Calculate total welcome and referral bonuses from active investments
+  const totalWelcomeBonus = investments?.reduce((sum, inv) => inv.status === 'active' ? sum + (inv.welcomeBonus || 0) : sum, 0) || 0;
+  const totalReferralBonus = investments?.reduce((sum, inv) => inv.status === 'active' ? sum + (inv.referralBonus || 0) : sum, 0) || 0;
+
   // ROI transactions from payouts
   const roiTransactions = investments?.flatMap(investment => 
     investment.payoutHistory?.map(payout => ({
@@ -390,22 +394,26 @@ export default function RoiPage() {
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex flex-col gap-2">
+                    {/* Referral Bonus */}
                     <div className="flex items-center justify-between">
                       <span className="font-medium flex items-center gap-1">
                         Referral Bonus
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <LockClosedIcon className="h-4 w-4 text-gray-400" />
+                              <GiftIcon className="h-4 w-4 text-blue-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <span>Still under review</span>
+                              <span>Total referral bonuses earned from your referrals' investments</span>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </span>
-                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Reviewing</span>
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {formatCurrency(totalReferralBonus, 'naira')}
+                      </span>
                     </div>
+                    {/* Welcome Bonus */}
                     <div className="flex items-center justify-between">
                       <span className="font-medium flex items-center gap-1">
                         Welcome Bonus
@@ -415,15 +423,13 @@ export default function RoiPage() {
                               <SparklesIcon className="h-4 w-4 text-yellow-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <span>Plan-specific welcome bonus from your investments</span>
+                              <span>Total welcome bonuses earned from your investments</span>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </span>
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                        {investments && investments.length > 0 
-                          ? `${investments[0]?.plan?.welcomeBonus || 0}%` 
-                          : '0%'}
+                        {formatCurrency(totalWelcomeBonus, 'naira')}
                       </span>
                     </div>
                   </div>
