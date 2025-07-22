@@ -30,9 +30,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Only redirect if we're not on a login/auth page
+      // Only redirect if we're not on a login/auth page or the landing page
       const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-      if (!currentPath.startsWith('/auth/')) {
+      const isAuthPage = currentPath.startsWith('/auth/');
+      const isLandingPage = currentPath === '/';
+      if (!isAuthPage && !isLandingPage) {
         localStorage.removeItem('access_token');
         if (typeof window !== 'undefined') {
           window.location.href = '/auth/login';
