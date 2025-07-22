@@ -454,7 +454,7 @@ export default function InvestmentsComponent() {
 
       {/* Investment Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[450px] md:max-w-[500px] lg:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-xl font-semibold">Investment Details</DialogTitle>
             <DialogDescription className="text-gray-600 mt-2">

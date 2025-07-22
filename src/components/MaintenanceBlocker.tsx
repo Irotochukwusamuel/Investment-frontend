@@ -1,50 +1,59 @@
 "use client";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { useUser } from "@/lib/hooks/useAuth";
 
 export default function MaintenanceBlocker({ children }: { children: React.ReactNode }) {
   const [maintenance, setMaintenance] = useState(false);
   const [message, setMessage] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { data: user, isLoading: userLoading } = useUser();
 
   useEffect(() => {
-    // Fetch maintenance status
-    fetch("/api/settings/maintenance-status")
-      .then(res => res.json())
-      .then(data => {
-        console.log("[MaintenanceBlocker] maintenance-status response:", data);
-        setMaintenance(data.maintenanceMode);
-        setMessage(data.maintenanceMessage);
-        // Fetch user profile (must be authenticated)
-        return fetch("/api/users/profile").then(res => {
-          if (!res.ok) throw new Error("Not authenticated");
-          return res.json();
-        });
-      })
-      .then(user => {
-        console.log("[MaintenanceBlocker] user profile response:", user);
-        setIsAdmin(user?.role === "admin");
+    // Only check maintenance status if user is logged in
+    if (userLoading) {
+      return; // Wait for user loading to complete
+    }
+
+    if (!user) {
+      // User is not logged in, allow access to login/auth pages
+      setLoading(false);
+      return;
+    }
+
+    // User is logged in, check maintenance status
+    api.get("/settings/maintenance-status")
+      .then(res => {
+        console.log("[MaintenanceBlocker] maintenance-status response:", res.data);
+        setMaintenance(res.data.maintenanceMode);
+        setMessage(res.data.maintenanceMessage);
         setLoading(false);
       })
       .catch((err) => {
         console.log("[MaintenanceBlocker] error:", err);
-        setIsAdmin(false);
+        setMaintenance(false);
         setLoading(false);
       });
-  }, []);
+  }, [user, userLoading]);
 
-  if (loading) {
+  if (userLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <span className="text-gray-600">Checking maintenance status...</span>
+          <span className="text-gray-600">Loading...</span>
         </div>
       </div>
     );
   }
 
-  if (maintenance && !isAdmin) {
+  // If user is not logged in, show normal content (login/auth pages)
+  if (!user) {
+    return <>{children}</>;
+  }
+
+  // If user is logged in and maintenance is active, check if they're admin
+  if (maintenance && user.role !== "admin") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="max-w-md mx-auto p-8 bg-white rounded shadow text-center">
@@ -54,5 +63,7 @@ export default function MaintenanceBlocker({ children }: { children: React.React
       </div>
     );
   }
+
+  // User is logged in and either maintenance is off or user is admin
   return <>{children}</>;
 } 

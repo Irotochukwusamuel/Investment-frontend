@@ -72,6 +72,7 @@ export default function DashboardLayout({
   const logout = useLogout();
   const router = useRouter();
   const { data: user } = useUser();
+  const [logoError, setLogoError] = useState(false);
   
   // Session timeout functionality
   const { 
@@ -155,6 +156,8 @@ export default function DashboardLayout({
     router.push('/auth/login');
   };
 
+  const logoSrc = resolvedTheme === 'dark' ? '/logo-dark.png' : '/logo-light.png';
+
   return (
     <div className="min-h-screen bg-background dark:bg-[#18181b]">
       {/* Mobile Sidebar */}
@@ -176,7 +179,16 @@ export default function DashboardLayout({
             >
               <div className="flex h-16 items-center justify-between px-4 border-b border-gray-800">
                 <div className="flex items-center space-x-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+                  {!logoError ? (
+                    <img
+                      src={logoSrc}
+                      alt="KLTMINES Logo"
+                      className="h-8 w-8 rounded-lg bg-white object-contain"
+                      onError={() => setLogoError(true)}
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+                  )}
                   <span className="text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">KLTMINES</span>
                 </div>
                 <button
@@ -259,7 +271,16 @@ export default function DashboardLayout({
         <div className="flex min-h-0 flex-1 flex-col bg-gray-900">
           <div className="flex h-16 items-center px-4 border-b border-gray-800">
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+              {!logoError ? (
+                <img
+                  src={logoSrc}
+                  alt="KLTMINES Logo"
+                  className="h-8 w-8 rounded-lg bg-white object-contain"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+              )}
               <span className="text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">KLTMINES</span>
             </div>
           </div>

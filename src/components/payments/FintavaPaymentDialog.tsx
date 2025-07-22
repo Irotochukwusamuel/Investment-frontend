@@ -150,7 +150,7 @@ export function FintavaPaymentDialog({ open, onOpenChange, onSuccess, initialAmo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[350px] md:max-w-[400px] lg:max-w-[450px] w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-green-600" />

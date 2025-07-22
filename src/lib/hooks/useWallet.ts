@@ -304,14 +304,15 @@ export const useWithdrawalSettings = () => {
     queryKey: ['settings', 'withdrawal'],
     queryFn: async () => {
       const response = await api.get(endpoints.settings.withdrawal);
-      // If backend wraps in { data }, unwrap, else return as is
       if (response.data && response.data.data) {
         return response.data.data;
       }
       return response.data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 0, // Always fetch latest
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }; 
 
@@ -329,5 +330,17 @@ export const usePlatformSettings = () => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}; 
+
+export const useBonusWithdrawalPeriod = () => {
+  return useQuery({
+    queryKey: ['settings', 'bonusWithdrawalPeriod'],
+    queryFn: async () => {
+      const response = await api.get(endpoints.settings.bonusWithdrawalPeriod);
+      return response.data.bonusWithdrawalPeriod || 15;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
   });
 }; 

@@ -26,11 +26,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { useUser } from '@/lib/hooks/useAuth'
 import { useReferrals, useReferralStats, ReferredUser } from '@/lib/hooks/useReferrals'
+import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
 
 export default function ReferralsPage() {
   const { data: user, isLoading: userLoading } = useUser()
   const { data: referrals, isLoading: referralsLoading, error: referralsError } = useReferrals()
   const { data: stats, isLoading: statsLoading } = useReferralStats()
+  const { data: bonusWithdrawalPeriod = 15 } = useBonusWithdrawalPeriod()
   const [copied, setCopied] = useState(false)
 
   const handleCopyReferralCode = async () => {
@@ -222,7 +224,7 @@ export default function ReferralsPage() {
                   <li>• Share your referral code with friends</li>
                   <li>• They get a welcome bonus on their first investment</li>
                   <li>• You earn referral bonuses when they invest</li>
-                  <li>• Bonuses can be withdrawn after 15 days of active investment</li>
+                  <li>• Bonuses can be withdrawn after {bonusWithdrawalPeriod} days of active investment, then anytime</li>
                 </ul>
               </div>
             </div>
@@ -317,7 +319,7 @@ export default function ReferralsPage() {
               <div className="space-y-4">
                 <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
                   <p className="text-2xl font-bold">
-                    {stats?.totalReferrals > 0 ? Math.round((stats.activeReferrals / stats.totalReferrals) * 100) : 0}%
+                    {stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.activeReferrals / stats.totalReferrals) * 100) : 0}%
                   </p>
                   <p className="text-sm text-gray-500">Active rate</p>
                 </div>
@@ -383,13 +385,13 @@ export default function ReferralsPage() {
               <div className="space-y-4">
                 <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
                   <p className="text-2xl font-bold">
-                    ₦{stats?.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)).toLocaleString() : 0}
+                    ₦{stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)).toLocaleString() : 0}
                   </p>
                   <p className="text-sm text-gray-500">Average</p>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Per referral</span>
-                  <span className="font-medium">~₦{(stats?.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)) : 0).toLocaleString()}</span>
+                  <span className="font-medium">~₦{(stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)) : 0).toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>

@@ -870,7 +870,7 @@ export default function InvestmentPlansComponent() {
           resetForm();
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-xl font-semibold">{showCreateDialog ? 'Create Investment Plan' : 'Edit Investment Plan'}</DialogTitle>
             <DialogDescription className="text-gray-600 mt-2">
@@ -1101,7 +1101,7 @@ export default function InvestmentPlansComponent() {
 
       {/* Plan Templates Dialog */}
       <Dialog open={showTemplatesDialog} onOpenChange={setShowTemplatesDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Investment Plan Templates</DialogTitle>
             <DialogDescription>
@@ -1147,7 +1147,7 @@ export default function InvestmentPlansComponent() {
 
       {/* Plan Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Plan Details</DialogTitle>
             <DialogDescription>

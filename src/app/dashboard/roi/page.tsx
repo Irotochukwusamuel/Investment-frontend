@@ -50,6 +50,7 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments'
 import { useWithdrawBonus } from '@/lib/hooks/useBonus'
+import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
 import { toast } from 'react-hot-toast'
 
 interface RoiTransaction {
@@ -60,9 +61,6 @@ interface RoiTransaction {
   status: 'completed' | 'pending'
   type: 'daily' | 'weekly' | 'monthly'
 }
-
-const BONUS_WAIT_DAYS = 15;
-const WELCOME_BONUS = 0.05; // 5%
 
 function daysBetween(date1: Date, date2: Date) {
   const msPerDay = 24 * 60 * 60 * 1000;
@@ -91,6 +89,7 @@ const formatDate = (dateString: string) => {
 export default function RoiPage() {
   const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
+  const { data: bonusWithdrawalPeriod = 15, isLoading: bonusPeriodLoading } = useBonusWithdrawalPeriod()
   const withdrawBonusMutation = useWithdrawBonus()
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -110,7 +109,7 @@ export default function RoiPage() {
   });
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
 
-  const isLoading = investmentsLoading || statsLoading
+  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -163,13 +162,19 @@ export default function RoiPage() {
   // Calculate eligibility
   const now = new Date();
   let eligible = false;
-  let daysLeft = BONUS_WAIT_DAYS;
-  if (!lastBonusWithdrawal) {
-    daysLeft = BONUS_WAIT_DAYS - daysBetween(activeInvestmentDate, now);
-    eligible = daysLeft <= 0;
+  let daysLeft = 0; // Initialize daysLeft to 0
+  
+  // Check if user has completed their first 15-day period
+  const daysSinceFirstInvestment = daysBetween(activeInvestmentDate, now);
+  
+  if (daysSinceFirstInvestment < bonusWithdrawalPeriod) { // Use 15 days from settings
+    // Still in initial 15-day period
+    daysLeft = bonusWithdrawalPeriod - daysSinceFirstInvestment;
+    eligible = false;
   } else {
-    daysLeft = BONUS_WAIT_DAYS - daysBetween(new Date(lastBonusWithdrawal), now);
-    eligible = daysLeft <= 0;
+    // Initial 15-day period completed - can withdraw anytime
+    daysLeft = 0;
+    eligible = true;
   }
 
   const handleWithdrawBonus = async () => {
@@ -374,7 +379,7 @@ export default function RoiPage() {
                               <span className="ml-1 cursor-pointer text-blue-400">ⓘ</span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <span>Bonuses are withdrawable every 15 days of active investment.</span>
+                              <span>Bonuses are withdrawable after {bonusWithdrawalPeriod} days of active investment. Once unlocked, you can withdraw anytime.</span>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -427,7 +432,7 @@ export default function RoiPage() {
                         <span className="text-gray-400 text-xs flex items-center gap-1"><LockClosedIcon className="h-4 w-4" />Locked</span>
                       )}
                       <div className="flex-1">
-                        <Progress value={100 * (BONUS_WAIT_DAYS - (daysLeft > 0 ? daysLeft : 0)) / BONUS_WAIT_DAYS} className="h-2 bg-gray-200" />
+                        <Progress value={100 * (bonusWithdrawalPeriod - (daysLeft > 0 ? daysLeft : 0)) / bonusWithdrawalPeriod} className="h-2 bg-gray-200" />
                       </div>
                       <span className="text-xs text-gray-500 w-16 text-right">{eligible ? 'Now' : daysLeft > 0 ? daysLeft + 'd' : '0d'}</span>
                     </div>
@@ -441,10 +446,10 @@ export default function RoiPage() {
                       {eligible ? 'Withdraw Bonus' : 'Withdraw Bonus (Available in ' + (daysLeft > 0 ? daysLeft : 0) + ' days)'}
                     </Button>
                     {!eligible && (
-                      <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after 15 days of active investment. After withdrawal, the next bonus will be available in another 15 days.</p>
+                      <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after {bonusWithdrawalPeriod} days of active investment. Once unlocked, you can withdraw bonuses anytime.</p>
                     )}
                     {bonusWithdrawn && (
-                      <p className="text-xs text-green-600 mt-2 text-center animate-bounce">Bonus withdrawn! Next withdrawal available in 15 days.</p>
+                      <p className="text-xs text-green-600 mt-2 text-center animate-bounce">Bonus withdrawn successfully!</p>
                     )}
                   </div>
                 </CardContent>
@@ -576,8 +581,8 @@ export default function RoiPage() {
 
       {/* View All Dialog */}
       <Dialog open={showAllTransactions} onOpenChange={setShowAllTransactions}>
-        <DialogContent className="sm:max-w-[90vw] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 bg-white/95 dark:bg-[#232526]/95">
-          <DialogHeader className="px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 bg-white/95 dark:bg-[#232526]/95">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               All Transactions
             </DialogTitle>
@@ -586,9 +591,9 @@ export default function RoiPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full min-h-0">
             {/* Filters - Fixed at top */}
-            <div className="p-6 pb-4 border-b bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm">
+            <div className="p-6 pb-4 border-b bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm flex-shrink-0">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -638,7 +643,7 @@ export default function RoiPage() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden min-h-0">
               <ScrollArea className="h-full">
                 <div className="p-6 space-y-4">
                   {currentTransactions.length === 0 ? (
@@ -701,7 +706,7 @@ export default function RoiPage() {
             </div>
 
             {/* Pagination - Fixed at bottom */}
-            <div className="p-6 pt-4 border-t bg-white/50 backdrop-blur-sm">
+            <div className="p-6 pt-4 border-t bg-white/50 backdrop-blur-sm flex-shrink-0">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-500">
                   Showing {indexOfFirstTransaction + 1} to {Math.min(indexOfLastTransaction, filteredTransactions.length)} of {filteredTransactions.length} transactions

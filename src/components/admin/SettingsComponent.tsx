@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Cog6ToothIcon, CurrencyDollarIcon, ShieldCheckIcon, BellIcon, ArrowTrendingUpIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, CurrencyDollarIcon, ShieldCheckIcon, BellIcon, ArrowTrendingUpIcon, CheckCircleIcon, ExclamationTriangleIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { api, endpoints } from '@/lib/api';
 
@@ -41,6 +41,7 @@ interface PlatformSettings {
     maintenanceMessage: string;
   };
   autoPayout?: boolean;
+  bonusWithdrawalPeriod?: number;
 }
 
 interface WithdrawalPolicy {
@@ -56,6 +57,7 @@ export default function SettingsComponent() {
     notifications: { emailNotifications: true, smsNotifications: false, pushNotifications: true },
     maintenance: { maintenanceMode: false, maintenanceMessage: '' },
     autoPayout: false,
+    bonusWithdrawalPeriod: 15,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -123,6 +125,7 @@ export default function SettingsComponent() {
           maintenanceMessage: fetchedSettings?.maintenance?.maintenanceMessage ?? '',
         },
         autoPayout: fetchedSettings?.autoPayout ?? false,
+        bonusWithdrawalPeriod: fetchedSettings?.bonusWithdrawalPeriod ?? 15,
       };
       
       setSettings(safeSettings);
@@ -261,6 +264,7 @@ export default function SettingsComponent() {
       notifications: { emailNotifications: true, smsNotifications: false, pushNotifications: true },
       maintenance: { maintenanceMode: false, maintenanceMessage: '' },
       autoPayout: false,
+      bonusWithdrawalPeriod: 15,
     };
     setSettings(defaultSettings);
     setHasChanges(true);
@@ -596,6 +600,34 @@ export default function SettingsComponent() {
                 className="h-10"
                 disabled={!settings.maintenance?.maintenanceMode}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bonus Settings */}
+        <Card className="mb-6">
+          <CardHeader className="p-6">
+            <CardTitle className="flex items-center space-x-2">
+              <GiftIcon className="h-5 w-5" />
+              <span>Bonus Settings</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Bonus Withdrawal Period (Days)</Label>
+              <Input
+                type="number"
+                value={settings.bonusWithdrawalPeriod ?? 15}
+                onChange={(e) => handleSettingChange('bonusWithdrawalPeriod', parseInt(e.target.value) || 15)}
+                className="h-10"
+                placeholder="15"
+                min="0"
+                max="365"
+              />
+              <p className="text-xs text-gray-500">
+                Number of days users must wait after their first active investment before they can withdraw bonuses. 
+                After this period, bonuses can be withdrawn anytime.
+              </p>
             </div>
           </CardContent>
         </Card>

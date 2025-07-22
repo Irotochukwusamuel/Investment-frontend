@@ -39,8 +39,35 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        // Mobile-specific improvements
+        "w-full h-full", // Ensure full coverage
+        "min-h-screen", // Minimum full screen height
+        // Browser-specific fixes
+        "backdrop-blur-sm", // Add backdrop blur for better visibility
+        "will-change-opacity", // Optimize for opacity animations
+        "pointer-events-auto", // Ensure click events work
         className
       )}
+      style={{
+        // Ensure consistent backdrop across browsers
+        WebkitBackdropFilter: 'blur(4px)',
+        backdropFilter: 'blur(4px)',
+        // Fallback for browsers that don't support backdrop-filter
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        // Ensure proper stacking
+        isolation: 'isolate',
+        // Mobile-specific positioning
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        // Ensure it works on all mobile browsers
+        width: '100vw',
+        height: '100vh',
+        // Prevent body scrolling on mobile
+        overflow: 'hidden',
+      }}
       {...props}
     />
   )
@@ -60,9 +87,25 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 grid gap-4 rounded-lg border p-6 shadow-lg duration-200 overflow-y-auto",
+          // Responsive width: full on mobile, 90vw on sm, 80vw on md, 50vw on lg+
+          "w-full sm:w-[90vw] md:w-[80vw] lg:w-1/2 lg:max-w-[50vw]",
+          // Height constraints
+          "max-h-[85vh] sm:max-h-[80vh] md:max-h-[75vh]",
+          // Browser-specific fixes
+          "transform-gpu will-change-transform backface-visibility-hidden perspective-1000",
           className
         )}
+        style={{
+          fontSize: '16px',
+          isolation: 'isolate',
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          WebkitTransform: 'translate(-50%, -50%)',
+          margin: '0 auto',
+        }}
         {...props}
       >
         {children}

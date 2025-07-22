@@ -382,8 +382,8 @@ export default function WithdrawalsPage() {
 
       {/* View All Dialog */}
       <Dialog open={showAllTransactions} onOpenChange={setShowAllTransactions}>
-        <DialogContent className="sm:max-w-[90vw] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 bg-white/95 dark:bg-[#232526]/95">
-          <DialogHeader className="px-6 py-4 border-b">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-0 bg-white/95 dark:bg-[#232526]/95">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               All Withdrawals
             </DialogTitle>
@@ -392,16 +392,16 @@ export default function WithdrawalsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full min-h-0">
             {/* Filters - Fixed at top */}
-            <div className="p-6 pb-4 border-b bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm">
+            <div className="p-6 pb-4 border-b bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm flex-shrink-0">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <Input
                     type="text"
                     placeholder="Search withdrawals..."
-                    className="pl-10 bg-white/50 backdrop-blur-sm"
+                    className="pl-10 bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -413,29 +413,10 @@ export default function WithdrawalsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-[140px] bg-white/50 backdrop-blur-sm">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="bank">Bank</SelectItem>
-                      <SelectItem value="crypto">Crypto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
-                    <SelectTrigger className="w-[140px] bg-white/50 backdrop-blur-sm">
-                      <SelectValue placeholder="Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Currencies</SelectItem>
-                      <SelectItem value="NGN">NGN</SelectItem>
-                      <SelectItem value="USDT">USDT</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -443,8 +424,6 @@ export default function WithdrawalsPage() {
                     onClick={() => {
                       setSearchQuery('')
                       setStatusFilter('all')
-                      setTypeFilter('all')
-                      setCurrencyFilter('all')
                     }}
                     className="bg-white/50 backdrop-blur-sm"
                   >
@@ -455,7 +434,7 @@ export default function WithdrawalsPage() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden min-h-0">
               <ScrollArea className="h-full">
                 <div className="p-6 space-y-4">
                   {currentTransactions.length === 0 ? (
@@ -463,19 +442,11 @@ export default function WithdrawalsPage() {
                       <ArrowDownTrayIcon className="h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">No Withdrawals Found</h3>
                       <p className="text-gray-500 mb-4">
-                        {searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || currencyFilter !== 'all'
+                        {searchQuery || statusFilter !== 'all' 
                           ? 'No withdrawals match your current filters. Try adjusting your search criteria.'
-                          : 'You haven\'t made any withdrawals yet. Start earning to withdraw your profits.'
+                          : 'You haven\'t made any withdrawals yet.'
                         }
                       </p>
-                      {!searchQuery && statusFilter === 'all' && typeFilter === 'all' && currencyFilter === 'all' && (
-                        <Button 
-                          onClick={() => window.location.href = '/dashboard/investments'}
-                          className="bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
-                        >
-                          Start Investing
-                        </Button>
-                      )}
                     </div>
                   ) : (
                     currentTransactions.map((transaction) => (
@@ -487,17 +458,15 @@ export default function WithdrawalsPage() {
                         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border-2 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
                       >
                         <div className="flex items-center space-x-4">
-                          <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 shadow-inner">
-                            {getTypeIcon(transaction.paymentMethod)}
+                          <div className="rounded-full bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-2 shadow-inner">
+                            <ArrowDownTrayIcon className="h-5 w-5 text-[#ff5858]" />
                           </div>
                           <div>
                             <p className="font-semibold text-base sm:text-lg">{formatCurrency(transaction.amount, transaction.currency)}</p>
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
                               <span className="text-sm text-gray-500 hidden sm:inline">•</span>
-                              <p className="text-sm text-gray-500">{transaction.paymentMethod}</p>
-                              <span className="text-sm text-gray-500 hidden sm:inline">•</span>
-                              <p className="text-sm text-gray-500">{transaction.currency}</p>
+                              <p className="text-sm text-gray-500">{transaction.currency.toUpperCase()}</p>
                             </div>
                           </div>
                         </div>
@@ -519,7 +488,7 @@ export default function WithdrawalsPage() {
             </div>
 
             {/* Pagination - Fixed at bottom */}
-            <div className="p-6 pt-4 border-t bg-white/50 backdrop-blur-sm">
+            <div className="p-6 pt-4 border-t bg-white/50 backdrop-blur-sm flex-shrink-0">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-gray-500">
                   Showing {indexOfFirstTransaction + 1} to {Math.min(indexOfLastTransaction, filteredTransactions.length)} of {filteredTransactions.length} withdrawals
@@ -530,7 +499,7 @@ export default function WithdrawalsPage() {
                     size="icon"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="h-8 w-8 bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+                    className="h-8 w-8 bg-white/50 backdrop-blur-sm"
                   >
                     <ChevronLeftIcon className="h-4 w-4" />
                   </Button>
@@ -544,8 +513,8 @@ export default function WithdrawalsPage() {
                         className={cn(
                           "h-8 w-8",
                           currentPage === page
-                            ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white"
-                            : "bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+                            ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                            : "bg-white/50 backdrop-blur-sm"
                         )}
                       >
                         {page}
@@ -557,7 +526,7 @@ export default function WithdrawalsPage() {
                     size="icon"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="h-8 w-8 bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
+                    className="h-8 w-8 bg-white/50 backdrop-blur-sm"
                   >
                     <ChevronRightIcon className="h-4 w-4" />
                   </Button>

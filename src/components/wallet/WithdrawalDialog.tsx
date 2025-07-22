@@ -63,6 +63,16 @@ export function WithdrawalDialog({
     }
   }, [open, initialAmount]);
 
+  // Reset component state when currency changes
+  useEffect(() => {
+    if (open) {
+      setStep('amount');
+      setAmount('');
+      setAmountError(null);
+      setIsProcessing(false);
+    }
+  }, [currency, open]);
+
   const availableBalance = currency === 'naira' 
     ? walletBalance?.totalBalance?.naira || 0
     : walletBalance?.totalBalance?.usdt || 0;
@@ -155,6 +165,9 @@ export function WithdrawalDialog({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Loading Withdrawal Settings</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             <span className="ml-2">Loading withdrawal settings...</span>
@@ -166,7 +179,7 @@ export function WithdrawalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[175px] md:max-w-[200px] lg:max-w-[225px] w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-red-600" />

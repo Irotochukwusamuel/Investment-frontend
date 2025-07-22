@@ -16,6 +16,7 @@ import {
   CreditCardIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,7 @@ import { Inter, Poppins } from 'next/font/google'
 import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings, usePlatformSettings } from '@/lib/hooks/useWallet'
 import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
 import { endpoints, api } from '@/lib/api'
+import { WithdrawalDialog } from '@/components/wallet/WithdrawalDialog'
 
 const inter = Inter({ subsets: ['latin'] })
 const poppins = Poppins({ 
@@ -85,6 +87,8 @@ export default function WalletPage() {
   const [activeTab, setActiveTab] = useState('naira')
   const [showDepositDialog, setShowDepositDialog] = useState(false)
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false)
+  const [showNgnWithdrawDialog, setShowNgnWithdrawDialog] = useState(false)
+  const [showUsdtWithdrawDialog, setShowUsdtWithdrawDialog] = useState(false)
   const [showFintavaDialog, setShowFintavaDialog] = useState(false)
   const [selectedCurrency, setSelectedCurrency] = useState('NGN')
   const [amount, setAmount] = useState<string>('')
@@ -499,127 +503,21 @@ export default function WalletPage() {
                         Deposit
                       </Button>
 
-                      <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
-                        <DialogTrigger asChild>
-                          <Button
-                            onClick={() => {
-                              setSelectedCurrency(balance.currency)
-                              setShowWithdrawDialog(true)
-                            }}
-                            variant="outline"
-                            className="w-full sm:w-auto h-12 px-6 py-3 border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                          >
-                            <ArrowUpIcon className="mr-2 h-4 w-4" />
-                            Withdraw
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
-                          <DialogHeader>
-                            <DialogTitle>Withdraw ROI Earnings</DialogTitle>
-                            <DialogDescription>
-                              Withdraw your ROI earnings to your bank account. 
-                              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <p className="text-sm text-yellow-800 font-medium">Important:</p>
-                                <ul className="text-xs text-yellow-700 mt-1 space-y-1">
-                                  <li>• You can only withdraw your ROI earnings, not your deposited amounts</li>
-                                  <li>• You must have at least one active investment to withdraw</li>
-                                  <li>• Withdrawal fee: {withdrawalFee}%</li>
-                                  <li>• Processing time: instant</li>
-                                  <li>• Min: {formatAmount(minWithdrawal, selectedCurrency)} | Max: {formatAmount(maxWithdrawal, selectedCurrency)}</li>
-                                </ul>
-                              </div>
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div>
-                              <Label className="text-gray-700 font-medium">Amount</Label>
-                              <div className="relative mt-1">
-                                {selectedCurrency === 'NGN' ? (
-                                  <BanknotesIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                ) : (
-                                  <CurrencyDollarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                )}
-                                <Input
-                                  type="number"
-                                  value={amount}
-                                  onChange={(e) => setAmount(e.target.value)}
-                                  className="pl-10 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
-                                  placeholder={`0.00 ${selectedCurrency}`}
-                                />
-                              </div>
-                              <p className="mt-1 text-sm text-gray-500">
-                                Available: {formatAmount(getAvailableBalance(selectedCurrency), selectedCurrency)}
-                              </p>
-                              <p className="mt-1 text-sm text-gray-500">
-                                Minimum withdrawal: {settingsLoading ? 'Loading...' : formatAmount(minWithdrawal, selectedCurrency)}
-                              </p>
-                              <p className="mt-1 text-sm text-gray-500">
-                                Maximum withdrawal: {settingsLoading ? 'Loading...' : formatAmount(maxWithdrawal, selectedCurrency)}
-                              </p>
-                              <p className="mt-1 text-sm text-gray-500">
-                                Fee: {settingsLoading ? 'Loading...' : `${withdrawalFee}%`}
-                              </p>
-                            </div>
-
-                            <Alert className="bg-blue-50 border-blue-200">
-                              <InformationCircleIcon className="h-4 w-4 text-blue-600" />
-                              <AlertTitle className="text-blue-800 font-semibold">Bank Details</AlertTitle>
-                              <AlertDescription className="text-blue-700">
-                                Your withdrawal will be processed to your registered bank account. 
-                                Please ensure your bank details are up to date in your profile.
-                              </AlertDescription>
-                            </Alert>
-
-                            {amount && (
-                              <div className="rounded-lg border-2 p-4 bg-white/50 backdrop-blur-sm">
-                                <div className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500 font-medium">Amount</span>
-                                    <span className="font-semibold">{formatAmount(Number(amount), selectedCurrency)}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500 font-medium">Fee</span>
-                                    <span className="font-semibold">{formatAmount(calculateWithdrawalFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
-                                  </div>
-                                  <Separator className="my-2" />
-                                  <div className="flex justify-between text-sm font-semibold">
-                                    <span>Net Amount</span>
-                                    <span>{formatAmount(Number(amount) - calculateWithdrawalFee(Number(amount), selectedCurrency), selectedCurrency)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setShowWithdrawDialog(false)
-                                setAmount('')
-                              }}
-                              className="w-full sm:w-auto bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={handleWithdrawal}
-                              disabled={isProcessing || !amount || 
-                                parseFloat(amount) < minWithdrawal ||
-                                parseFloat(amount) > maxWithdrawal}
-                              className="w-full sm:w-auto bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                            >
-                              {isProcessing ? (
-                                <>
-                                  <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : (
-                                'Confirm Withdrawal'
-                              )}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        onClick={() => {
+                          setSelectedCurrency(balance.currency)
+                          if (balance.currency === 'NGN') {
+                            setShowNgnWithdrawDialog(true)
+                          } else {
+                            setShowUsdtWithdrawDialog(true)
+                          }
+                        }}
+                        variant="outline"
+                        className="w-full sm:w-auto h-12 px-6 py-3 border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <ArrowUpIcon className="mr-2 h-4 w-4" />
+                        Withdraw
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -776,7 +674,7 @@ export default function WalletPage() {
 
       {/* All Transactions Dialog */}
       <Dialog open={showAllTransactions} onOpenChange={setShowAllTransactions}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
+        <DialogContent className="sm:max-w-[500px] md:max-w-[600px] lg:max-w-[700px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
               All Transactions
@@ -787,20 +685,20 @@ export default function WalletPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Filters and Search */}
+            {/* Search and Filters */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     placeholder="Search transactions..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white/50 backdrop-blur-sm border-2 focus:border-[#ff5858] transition-colors"
+                    className="pl-10 bg-white/50 dark:bg-[#232526]/50 backdrop-blur-sm"
                   />
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Select value={transactionFilter} onValueChange={setTransactionFilter}>
                   <SelectTrigger className="w-full sm:w-[180px] bg-white/50 backdrop-blur-sm border-2">
                     <SelectValue placeholder="Filter by type" />
@@ -932,9 +830,45 @@ export default function WalletPage() {
         }}
       />
 
+      {/* NGN Withdraw Dialog */}
+      <Dialog open={showNgnWithdrawDialog} onOpenChange={setShowNgnWithdrawDialog}>
+        <DialogContent className="w-[50vw] max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Withdraw NGN</DialogTitle>
+          <WithdrawalDialog
+            key="withdraw-ngn"
+            open={showNgnWithdrawDialog}
+            onOpenChange={setShowNgnWithdrawDialog}
+            onSuccess={() => {
+              toast.success('Withdrawal request submitted successfully!');
+              setShowNgnWithdrawDialog(false);
+            }}
+            currency="naira"
+            initialAmount={walletBalances.find(b => b.currency === 'NGN')?.amount?.toString() || '0'}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* USDT Withdraw Dialog */}
+      <Dialog open={showUsdtWithdrawDialog} onOpenChange={setShowUsdtWithdrawDialog}>
+        <DialogContent className="w-[50vw] max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Withdraw USDT</DialogTitle>
+          <WithdrawalDialog
+            key="withdraw-usdt"
+            open={showUsdtWithdrawDialog}
+            onOpenChange={setShowUsdtWithdrawDialog}
+            onSuccess={() => {
+              toast.success('Withdrawal request submitted successfully!');
+              setShowUsdtWithdrawDialog(false);
+            }}
+            currency="usdt"
+            initialAmount={walletBalances.find(b => b.currency === 'USDT')?.amount?.toString() || '0'}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* USDT Deposit Dialog */}
       <Dialog open={showDepositDialog} onOpenChange={setShowDepositDialog}>
-        <DialogContent className="sm:max-w-[425px] w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] bg-white/95 dark:bg-[#232526]/95 backdrop-blur-sm border-2">
+        <DialogContent className="sm:max-w-[350px] md:max-w-[400px] lg:max-w-[450px] w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
               Deposit {selectedCurrency}
@@ -1125,39 +1059,5 @@ export default function WalletPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
-}
-
-function WalletCard({ title, description, balance, details, actions, icon, color }: any) {
-  const gradientColor = color === 'orange' 
-    ? 'from-[#ff5858] to-[#ff9966]' 
-    : 'from-purple-500 to-indigo-600'
-
-  return (
-    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-      <Card className={cn("relative overflow-hidden text-white border-none shadow-2xl", `bg-gradient-to-br ${gradientColor}`)}>
-        <div className="absolute top-0 right-0 h-24 w-24 text-white/10">{icon}</div>
-        <CardHeader>
-          <CardTitle className="text-2xl">{title}</CardTitle>
-          <p className="text-sm opacity-80">{description}</p>
-        </CardHeader>
-        <CardContent>
-          <p className="text-5xl font-bold mb-4">${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          {details.length > 0 && (
-            <div className="space-y-2 border-t border-white/20 pt-4">
-              {details.map((item: any) => (
-                <div key={item.label} className="flex justify-between text-lg">
-                  <span className="opacity-80">{item.label}</span>
-                  <span>${item.value.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex space-x-4 mt-6">
-            {actions}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
   )
 } 

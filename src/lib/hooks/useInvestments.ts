@@ -149,12 +149,12 @@ export const useCreateInvestment = () => {
       const response = await api.post(endpoints.investments.create, data);
       return handleApiResponse<Investment>(response);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Invalidate and refetch related queries
       queryClient.invalidateQueries({ queryKey: ['investments'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      toast.success('Investment created successfully');
+      // Don't show toast here since we'll show the confirmation modal instead
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to create investment');

@@ -299,4 +299,35 @@
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
   }
+
+  /* Dialog and modal improvements for mobile */
+  [data-slot="dialog-content"] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    max-height: calc(100vh - 2rem);
+    max-width: calc(100vw - 2rem);
+  }
+
+  /* Improve scroll area on mobile */
+  [data-radix-scroll-area-viewport] {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Better mobile dialog positioning */
+  @media screen and (max-width: 768px) {
+    [data-slot="dialog-content"] {
+      margin: 1rem;
+      width: calc(100vw - 2rem);
+      max-width: calc(100vw - 2rem);
+      max-height: calc(100vh - 2rem);
+    }
+  }
+
+  /* Prevent body scroll when dialog is open */
+  body[data-dialog-open="true"] {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
 }

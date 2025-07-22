@@ -59,6 +59,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 import { useInvestmentPlans, useMyInvestments, useCreateInvestment, type InvestmentPlan, type Investment } from '@/lib/hooks/useInvestments'
+import { InvestmentConfirmationModal } from '@/components/investments/InvestmentConfirmationModal'
 
 interface PaymentMethod {
   id: string
@@ -133,9 +134,11 @@ const getStatusColor = (status: string) => {
 export default function InvestmentsPage() {
   const [selectedPlan, setSelectedPlan] = useState<InvestmentPlan | null>(null)
   const [investmentAmount, setInvestmentAmount] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [activeTab, setActiveTab] = useState('plans')
   const [autoReinvest, setAutoReinvest] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false)
+  const [createdInvestment, setCreatedInvestment] = useState<Investment | null>(null)
+  const [activeTab, setActiveTab] = useState('plans')
   const [selectedCurrency, setSelectedCurrency] = useState<'naira' | 'usdt'>('naira')
   const [searchQuery, setSearchQuery] = useState('')
   const [roiFilter, setRoiFilter] = useState('all')
@@ -217,7 +220,7 @@ export default function InvestmentsPage() {
 
     setIsProcessing(true)
     try {
-      await createInvestment.mutateAsync({
+      const investment = await createInvestment.mutateAsync({
         planId: selectedPlan.id,
         amount: parseFloat(investmentAmount),
         currency: selectedPlan.currency,
@@ -227,6 +230,8 @@ export default function InvestmentsPage() {
         setSelectedPlan(null)
         setInvestmentAmount('')
         setAutoReinvest(false)
+        setCreatedInvestment(investment);
+        setShowConfirmationModal(true);
     } catch (error) {
       console.log("Error", error)
       // Error handling is done in the hook
@@ -500,7 +505,7 @@ export default function InvestmentsPage() {
                                 Invest Now
                               </Button>
                             </DialogTrigger>
-                              <DialogContent className="sm:max-w-[500px]">
+                              <DialogContent className="sm:max-w-[350px] md:max-w-[400px] lg:max-w-[450px] w-[95vw] max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                   <DialogTitle className="flex items-center gap-2">
                                     {getPlanIcon(plan.name)}
@@ -775,6 +780,24 @@ export default function InvestmentsPage() {
             )}
         </TabsContent>
       </Tabs>
+      <InvestmentConfirmationModal
+        open={showConfirmationModal}
+        onOpenChange={setShowConfirmationModal}
+        investment={createdInvestment ? {
+          id: createdInvestment.id,
+          plan: {
+            name: createdInvestment.plan.name,
+            currency: createdInvestment.plan.currency,
+          },
+          amount: createdInvestment.amount,
+          currency: createdInvestment.currency,
+          dailyRoi: createdInvestment.dailyRoi,
+          totalRoi: createdInvestment.totalRoi,
+          duration: createdInvestment.duration,
+          startDate: createdInvestment.startDate,
+          expectedReturn: createdInvestment.expectedReturn,
+        } : undefined}
+      />
     </div>
   )
 } 

@@ -18,9 +18,11 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline'
 import { useUser } from '@/lib/hooks/useAuth'
+import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
 
 export default function ProfilePage() {
   const { data: user, isLoading } = useUser()
+  const { data: bonusWithdrawalPeriod = 15 } = useBonusWithdrawalPeriod()
   const [copied, setCopied] = useState(false)
 
   const handleCopyReferralCode = async () => {
@@ -232,7 +234,7 @@ export default function ProfilePage() {
                     <li>• Share your referral code with friends</li>
                     <li>• They get a welcome bonus on their first investment</li>
                     <li>• You earn referral bonuses when they invest</li>
-                    <li>• Bonuses can be withdrawn after 15 days of active investment</li>
+                    <li>• Bonuses can be withdrawn after {bonusWithdrawalPeriod} days of active investment, then anytime</li>
                   </ul>
                 </div>
               </div>

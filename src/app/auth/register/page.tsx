@@ -56,14 +56,20 @@ export default function RegisterPage() {
     }
     
     try {
-      const result = await registerMutation.mutateAsync({
+      // Build payload and omit phoneNumber if empty
+      const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        phoneNumber: formData.phoneNumber || undefined,
-        referralCode: formData.referralCode || undefined,
-      })
+      };
+      if (formData.phoneNumber && formData.phoneNumber.trim() !== "") {
+        payload.phoneNumber = formData.phoneNumber;
+      }
+      if (formData.referralCode && formData.referralCode.trim() !== "") {
+        payload.referralCode = formData.referralCode;
+      }
+      const result = await registerMutation.mutateAsync(payload)
       
       toast.success('Registration successful! Please check your email for verification code.')
       

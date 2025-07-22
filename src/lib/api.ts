@@ -151,6 +151,7 @@ export const endpoints = {
   // Settings (public)
   settings: {
     withdrawal: '/admin/withdrawals/settings',
+    bonusWithdrawalPeriod: '/api/settings/bonus-withdrawal-period',
   },
   
   // Referrals
