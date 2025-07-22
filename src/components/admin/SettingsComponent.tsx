@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Cog6ToothIcon, CurrencyDollarIcon, ShieldCheckIcon, BellIcon, ArrowTrendingUpIcon, CheckCircleIcon, ExclamationTriangleIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { api, endpoints } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PlatformSettings {
   withdrawalLimits: {
@@ -42,6 +43,9 @@ interface PlatformSettings {
   };
   autoPayout?: boolean;
   bonusWithdrawalPeriod?: number;
+  // USDT Feature Toggles
+  usdtWithdrawalEnabled?: boolean;
+  usdtInvestmentEnabled?: boolean;
 }
 
 interface WithdrawalPolicy {
@@ -49,6 +53,7 @@ interface WithdrawalPolicy {
 }
 
 export default function SettingsComponent() {
+  const queryClient = useQueryClient();
   const [settings, setSettings] = useState<PlatformSettings>({
     withdrawalLimits: { minAmount: 0, maxAmount: 0 },
     depositLimits: { minAmount: 0, maxAmount: 0 },
@@ -58,6 +63,9 @@ export default function SettingsComponent() {
     maintenance: { maintenanceMode: false, maintenanceMessage: '' },
     autoPayout: false,
     bonusWithdrawalPeriod: 15,
+    // USDT Feature Toggles
+    usdtWithdrawalEnabled: false,
+    usdtInvestmentEnabled: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,6 +134,9 @@ export default function SettingsComponent() {
         },
         autoPayout: fetchedSettings?.autoPayout ?? false,
         bonusWithdrawalPeriod: fetchedSettings?.bonusWithdrawalPeriod ?? 15,
+        // USDT Feature Toggles
+        usdtWithdrawalEnabled: fetchedSettings?.usdtWithdrawalEnabled ?? false,
+        usdtInvestmentEnabled: fetchedSettings?.usdtInvestmentEnabled ?? false,
       };
       
       setSettings(safeSettings);
@@ -205,6 +216,12 @@ export default function SettingsComponent() {
     try {
       const response = await api.patch(endpoints.admin.settings, settings);
       
+      // Invalidate withdrawal settings cache to ensure frontend reflects new fees immediately
+      queryClient.invalidateQueries({ queryKey: ['settings', 'withdrawal'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'platform'] });
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      
       // Update original settings to reflect the saved state
       setOriginalSettings(JSON.parse(JSON.stringify(response.data)));
       setHasChanges(false);
@@ -213,7 +230,7 @@ export default function SettingsComponent() {
       
       // Show detailed success message
       toast.success('Changes applied:', {
-        description: '• Withdrawal fees updated for all pending withdrawals\n• All users notified of changes\n• Settings saved to database',
+        description: '• Withdrawal fees updated for all pending withdrawals\n• All users notified of changes\n• Settings saved to database\n• Frontend cache cleared for immediate effect',
         duration: 5000,
       });
       
@@ -265,6 +282,9 @@ export default function SettingsComponent() {
       maintenance: { maintenanceMode: false, maintenanceMessage: '' },
       autoPayout: false,
       bonusWithdrawalPeriod: 15,
+      // USDT Feature Toggles
+      usdtWithdrawalEnabled: false,
+      usdtInvestmentEnabled: false,
     };
     setSettings(defaultSettings);
     setHasChanges(true);
@@ -628,6 +648,34 @@ export default function SettingsComponent() {
                 Number of days users must wait after their first active investment before they can withdraw bonuses. 
                 After this period, bonuses can be withdrawn anytime.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* USDT Feature Toggles */}
+        <Card className="lg:col-span-2 mb-6">
+          <CardHeader className="p-6">
+            <CardTitle className="flex items-center space-x-2">
+              <CurrencyDollarIcon className="h-5 w-5" />
+              <span>USDT Feature Toggles</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Enable USDT Withdrawal</Label>
+                <Switch
+                  checked={!!settings.usdtWithdrawalEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('usdtWithdrawalEnabled', checked)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Enable USDT Investment</Label>
+                <Switch
+                  checked={!!settings.usdtInvestmentEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('usdtInvestmentEnabled', checked)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

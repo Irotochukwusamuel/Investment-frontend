@@ -303,16 +303,25 @@ export const useWithdrawalSettings = () => {
   return useQuery({
     queryKey: ['settings', 'withdrawal'],
     queryFn: async () => {
-      const response = await api.get(endpoints.settings.withdrawal);
+      console.log('🔄 useWithdrawalSettings - Fetching fresh data...');
+      const response = await api.get(endpoints.settings.publicWithdrawal);
+      console.log('🔄 useWithdrawalSettings - Raw response:', response.data);
+      
+      let result;
       if (response.data && response.data.data) {
-        return response.data.data;
+        result = response.data.data;
+      } else {
+        result = response.data;
       }
-      return response.data;
+      
+      console.log('🔄 useWithdrawalSettings - Processed result:', result);
+      return result;
     },
     staleTime: 0, // Always fetch latest
-    gcTime: 10 * 60 * 1000,
+    gcTime: 0, // Don't cache at all
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }; 
 

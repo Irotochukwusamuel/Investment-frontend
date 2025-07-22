@@ -48,7 +48,7 @@ export function WithdrawalDialog({
 
   const { data: walletBalance, isLoading: walletLoading } = useWalletBalance();
   const { data: bankDetails, isLoading: bankLoading } = useActiveBankDetails();
-  const { data: withdrawalSettings, isLoading: settingsLoading } = useWithdrawalSettings();
+  const { data: withdrawalSettings, isLoading: settingsLoading, refetch: refetchSettings } = useWithdrawalSettings();
   const createWithdrawal = useCreateWithdrawal();
 
   // Get withdrawal limits and fees from settings
@@ -62,6 +62,24 @@ export function WithdrawalDialog({
       setAmount(initialAmount);
     }
   }, [open, initialAmount]);
+
+  // Refetch settings when dialog opens to ensure latest fees
+  useEffect(() => {
+    if (open) {
+      refetchSettings();
+    }
+  }, [open, refetchSettings]);
+
+  // Debug log to see what fee is being used
+  useEffect(() => {
+    if (withdrawalSettings) {
+      console.log('Withdrawal settings loaded:', {
+        withdrawalFee: withdrawalSettings.withdrawalFee,
+        minWithdrawal: withdrawalSettings.minWithdrawalAmount,
+        maxWithdrawal: withdrawalSettings.maxWithdrawalAmount
+      });
+    }
+  }, [withdrawalSettings]);
 
   // Reset component state when currency changes
   useEffect(() => {

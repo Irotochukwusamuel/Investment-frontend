@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import { useState, useEffect } from 'react'
 import { AnimatePresence, animate, useMotionValue, useTransform } from 'framer-motion'
 import LandingLayout from './LandingLayout'
+import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
 
 const features = [
   {
@@ -139,6 +140,8 @@ const faqs = [
 ]
 
 export default function LandingPageContent() {
+  const { data: usdtSettings } = useUsdtSettings()
+  
   const AnimatedCounter = ({ value, precision = 0 }: { value: number; precision?: number }) => {
     const count = useMotionValue(0)
     const rounded = useTransform(count, (latest) => latest.toFixed(precision))
@@ -152,7 +155,7 @@ export default function LandingPageContent() {
   }
 
   const InvestmentCalculator = () => {
-    const [currency, setCurrency] = useState<'usdt' | 'naira'>('usdt');
+    const [currency, setCurrency] = useState<'usdt' | 'naira'>(usdtSettings?.usdtInvestmentEnabled ? 'usdt' : 'naira');
     const investmentPlans = currency === 'usdt' ? usdtInvestmentPlans : nairaInvestmentPlans;
     const minAmount = investmentPlans[0].min;
     const maxAmount = investmentPlans[investmentPlans.length - 1].max;
@@ -162,6 +165,12 @@ export default function LandingPageContent() {
     useEffect(() => {
       setAmount(currency === 'usdt' ? usdtInvestmentPlans[2].min : nairaInvestmentPlans[2].min);
     }, [currency]);
+
+    useEffect(() => {
+      if (!usdtSettings?.usdtInvestmentEnabled && currency === 'usdt') {
+        setCurrency('naira');
+      }
+    }, [usdtSettings?.usdtInvestmentEnabled, currency]);
 
     const handleAmountChange = (value: string) => {
       if (value === '') {
@@ -231,10 +240,13 @@ export default function LandingPageContent() {
               <div className="flex space-x-1 rounded-full bg-gray-200 dark:bg-gray-700 p-1">
                 <button
                   onClick={() => setCurrency('usdt')}
-                  className={`relative px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white transition-colors duration-300`}
+                  disabled={!usdtSettings?.usdtInvestmentEnabled}
+                  className={`relative px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {currency === 'usdt' && <motion.span layoutId="calculator-currency-bg" className="absolute inset-0 rounded-full bg-white dark:bg-gray-900 shadow" />}
-                  <span className="relative z-10">USDT</span>
+                  <span className="relative z-10">
+                    {!usdtSettings?.usdtInvestmentEnabled ? 'USDT (Coming Soon)' : 'USDT'}
+                  </span>
                 </button>
                 <button
                   onClick={() => setCurrency('naira')}

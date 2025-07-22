@@ -59,6 +59,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 import { useInvestmentPlans, useMyInvestments, useCreateInvestment, type InvestmentPlan, type Investment } from '@/lib/hooks/useInvestments'
+import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
 import { InvestmentConfirmationModal } from '@/components/investments/InvestmentConfirmationModal'
 
 interface PaymentMethod {
@@ -151,6 +152,7 @@ export default function InvestmentsPage() {
     currency: selectedCurrency 
   });
   const { data: myInvestments, isLoading: investmentsLoading } = useMyInvestments();
+  const { data: usdtSettings, isLoading: usdtSettingsLoading } = useUsdtSettings();
   const createInvestment = useCreateInvestment();
 
   const isLoading = plansLoading || investmentsLoading;
@@ -348,7 +350,9 @@ export default function InvestmentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="naira">Naira (₦)</SelectItem>
-                  <SelectItem value="usdt">USDT</SelectItem>
+                  <SelectItem value="usdt" disabled={!usdtSettings?.usdtInvestmentEnabled}>
+                    {!usdtSettings?.usdtInvestmentEnabled ? 'USDT (Coming Soon)' : 'USDT'}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -499,10 +503,11 @@ export default function InvestmentsPage() {
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
-                                  className="bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
+                                  className="bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={() => setSelectedPlan(plan)}
+                                disabled={plan.currency === 'usdt' && !usdtSettings?.usdtInvestmentEnabled}
                               >
-                                Invest Now
+                                {plan.currency === 'usdt' && !usdtSettings?.usdtInvestmentEnabled ? 'Coming Soon' : 'Invest Now'}
                               </Button>
                             </DialogTrigger>
                               <DialogContent className="sm:max-w-[350px] md:max-w-[400px] lg:max-w-[450px] w-[95vw] max-h-[90vh] overflow-y-auto">

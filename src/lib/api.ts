@@ -136,6 +136,7 @@ export const endpoints = {
     roiSettings: '/admin/plans/roi-settings',
     roiStats: '/admin/plans/roi-stats',
     withdrawalPolicy: '/admin/settings/withdrawal-policy',
+    usdtFeatures: '/admin/settings/usdt-features',
     cleanupOrphanedData: '/admin/cleanup-orphaned-data',
     processMissingReferralBonuses: '/admin/process-missing-referral-bonuses',
   },
@@ -151,6 +152,7 @@ export const endpoints = {
   // Settings (public)
   settings: {
     withdrawal: '/admin/withdrawals/settings',
+    publicWithdrawal: '/settings/withdrawal',
     bonusWithdrawalPeriod: '/api/settings/bonus-withdrawal-period',
   },
   

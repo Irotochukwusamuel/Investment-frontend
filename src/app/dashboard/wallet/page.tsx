@@ -49,6 +49,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Inter, Poppins } from 'next/font/google'
 import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings, usePlatformSettings } from '@/lib/hooks/useWallet'
+import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
 import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
 import { endpoints, api } from '@/lib/api'
 import { WithdrawalDialog } from '@/components/wallet/WithdrawalDialog'
@@ -124,8 +125,9 @@ export default function WalletPage() {
   // Settings hooks
   const { data: withdrawalSettings, isLoading: settingsLoading } = useWithdrawalSettings();
   const { data: platformSettings, isLoading: platformSettingsLoading } = usePlatformSettings();
+  const { data: usdtSettings, isLoading: usdtSettingsLoading } = useUsdtSettings();
 
-  const isLoading = walletLoading || transactionsLoading || settingsLoading || platformSettingsLoading
+  const isLoading = walletLoading || transactionsLoading || settingsLoading || platformSettingsLoading || usdtSettingsLoading
   const transactions = transactionData?.transactions || []
 
   // Get withdrawal limits and fees from settings with proper null checks
@@ -497,10 +499,11 @@ export default function WalletPage() {
                             setShowDepositDialog(true)
                           }
                         }}
-                        className="w-full sm:w-auto h-12 px-6 py-3 bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] shadow-lg hover:shadow-xl transition-all duration-300"
+                        disabled={balance.currency === 'USDT' && !usdtSettings?.usdtInvestmentEnabled}
+                        className="w-full sm:w-auto h-12 px-6 py-3 bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white hover:from-[#ff6868] hover:via-[#ff8e7f] hover:to-[#ffa988] shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ArrowDownIcon className="mr-2 h-4 w-4" />
-                        Deposit
+                        {balance.currency === 'USDT' && !usdtSettings?.usdtInvestmentEnabled ? 'Coming Soon' : 'Deposit'}
                       </Button>
 
                       <Button
@@ -512,11 +515,12 @@ export default function WalletPage() {
                             setShowUsdtWithdrawDialog(true)
                           }
                         }}
+                        disabled={balance.currency === 'USDT' && !usdtSettings?.usdtWithdrawalEnabled}
                         variant="outline"
-                        className="w-full sm:w-auto h-12 px-6 py-3 border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full sm:w-auto h-12 px-6 py-3 border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <ArrowUpIcon className="mr-2 h-4 w-4" />
-                        Withdraw
+                        {balance.currency === 'USDT' && !usdtSettings?.usdtWithdrawalEnabled ? 'Coming Soon' : 'Withdraw'}
                       </Button>
                     </div>
                   </div>
