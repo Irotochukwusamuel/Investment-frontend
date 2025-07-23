@@ -43,6 +43,7 @@ interface PlatformSettings {
   };
   autoPayout?: boolean;
   bonusWithdrawalPeriod?: number;
+  bonusWithdrawalUnit?: 'minutes' | 'hours' | 'days';
   // USDT Feature Toggles
   usdtWithdrawalEnabled?: boolean;
   usdtInvestmentEnabled?: boolean;
@@ -63,6 +64,7 @@ export default function SettingsComponent() {
     maintenance: { maintenanceMode: false, maintenanceMessage: '' },
     autoPayout: false,
     bonusWithdrawalPeriod: 15,
+    bonusWithdrawalUnit: 'days',
     // USDT Feature Toggles
     usdtWithdrawalEnabled: false,
     usdtInvestmentEnabled: false,
@@ -134,6 +136,7 @@ export default function SettingsComponent() {
         },
         autoPayout: fetchedSettings?.autoPayout ?? false,
         bonusWithdrawalPeriod: fetchedSettings?.bonusWithdrawalPeriod ?? 15,
+        bonusWithdrawalUnit: fetchedSettings?.bonusWithdrawalUnit ?? 'days',
         // USDT Feature Toggles
         usdtWithdrawalEnabled: fetchedSettings?.usdtWithdrawalEnabled ?? false,
         usdtInvestmentEnabled: fetchedSettings?.usdtInvestmentEnabled ?? false,
@@ -214,6 +217,33 @@ export default function SettingsComponent() {
 
     setSaving(true);
     try {
+      // Handle bonus withdrawal period separately if it changed
+      const originalBonusPeriod = originalSettings?.bonusWithdrawalPeriod ?? 15;
+      const newBonusPeriod = settings.bonusWithdrawalPeriod ?? 15;
+      const originalBonusUnit = originalSettings?.bonusWithdrawalUnit ?? 'days';
+      const newBonusUnit = settings.bonusWithdrawalUnit ?? 'days';
+      
+      if (originalBonusPeriod !== newBonusPeriod || originalBonusUnit !== newBonusUnit) {
+        try {
+          const bonusResponse = await api.patch(endpoints.admin.settings + '/bonus-withdrawal-period', {
+            value: newBonusPeriod,
+            unit: newBonusUnit
+          });
+          
+          if (bonusResponse.data.affectedUsers > 0) {
+            toast.success(`Bonus withdrawal period updated! ${bonusResponse.data.affectedUsers} users were notified of the change.`);
+          } else {
+            toast.success('Bonus withdrawal period updated successfully!');
+          }
+        } catch (error: any) {
+          console.error('Error updating bonus withdrawal period:', error);
+          toast.error('Failed to update bonus withdrawal period: ' + (error.response?.data?.message || 'Unknown error'));
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Update other settings
       const response = await api.patch(endpoints.admin.settings, settings);
       
       // Invalidate withdrawal settings cache to ensure frontend reflects new fees immediately
@@ -221,6 +251,7 @@ export default function SettingsComponent() {
       queryClient.invalidateQueries({ queryKey: ['settings', 'platform'] });
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'bonusWithdrawalPeriod'] });
       
       // Update original settings to reflect the saved state
       setOriginalSettings(JSON.parse(JSON.stringify(response.data)));
@@ -282,6 +313,7 @@ export default function SettingsComponent() {
       maintenance: { maintenanceMode: false, maintenanceMessage: '' },
       autoPayout: false,
       bonusWithdrawalPeriod: 15,
+      bonusWithdrawalUnit: 'days',
       // USDT Feature Toggles
       usdtWithdrawalEnabled: false,
       usdtInvestmentEnabled: false,
@@ -634,19 +666,34 @@ export default function SettingsComponent() {
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Bonus Withdrawal Period (Days)</Label>
-              <Input
-                type="number"
-                value={settings.bonusWithdrawalPeriod ?? 15}
-                onChange={(e) => handleSettingChange('bonusWithdrawalPeriod', parseInt(e.target.value) || 15)}
-                className="h-10"
-                placeholder="15"
-                min="0"
-                max="365"
-              />
+              <Label className="text-sm font-medium">Bonus Withdrawal Period</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  value={settings.bonusWithdrawalPeriod ?? 15}
+                  onChange={(e) => handleSettingChange('bonusWithdrawalPeriod', parseInt(e.target.value) || 15)}
+                  className="h-10 flex-1"
+                  placeholder="15"
+                  min="1"
+                  max="365"
+                />
+                <Select
+                  value={settings.bonusWithdrawalUnit ?? 'days'}
+                  onValueChange={(value: 'minutes' | 'hours' | 'days') => handleSettingChange('bonusWithdrawalUnit', value)}
+                >
+                  <SelectTrigger className="h-10 w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minutes">Minutes</SelectItem>
+                    <SelectItem value="hours">Hours</SelectItem>
+                    <SelectItem value="days">Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <p className="text-xs text-gray-500">
-                Number of days users must wait after their first active investment before they can withdraw bonuses. 
-                After this period, bonuses can be withdrawn anytime.
+                Time period users must wait after their first active investment before they can withdraw bonuses. 
+                After this period, bonuses can be withdrawn anytime. Changing this will notify affected users.
               </p>
             </div>
             <div className="pt-4">

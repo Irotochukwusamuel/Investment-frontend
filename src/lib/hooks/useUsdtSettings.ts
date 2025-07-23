@@ -10,7 +10,7 @@ export const useUsdtSettings = () => {
   return useQuery<UsdtFeatureSettings>({
     queryKey: ['usdt-settings'],
     queryFn: async () => {
-      const response = await api.get(endpoints.admin.usdtFeatures);
+      const response = await api.get(endpoints.settings.usdtFeatures);
       return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

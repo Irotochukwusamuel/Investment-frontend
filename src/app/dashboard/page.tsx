@@ -36,16 +36,6 @@ import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments
 import { useUser } from '@/lib/hooks/useAuth'
 import dynamic from 'next/dynamic'
 
-// Import admin components with dynamic loading
-const NoticeBoardComponent = dynamic(() => import('@/components/admin/NoticeBoardComponent'), { ssr: false });
-const WalletManagementComponent = dynamic(() => import('@/components/admin/WalletManagementComponent'), { ssr: false });
-const ROIManagementComponent = dynamic(() => import('@/components/admin/ROIManagementComponent'), { ssr: false });
-const InvestmentPlansComponent = dynamic(() => import('@/components/admin/InvestmentPlansComponent'), { ssr: false });
-const InvestmentsComponent = dynamic(() => import('@/components/admin/InvestmentsComponent'), { ssr: false });
-const WithdrawalsComponent = dynamic(() => import('@/components/admin/WithdrawalsComponent'), { ssr: false });
-const UserManagementComponent = dynamic(() => import('@/components/admin/UserManagementComponent'), { ssr: false });
-const SettingsComponent = dynamic(() => import('@/components/admin/SettingsComponent'), { ssr: false });
-
 // Import notice display component
 const NoticeDisplay = dynamic(() => import('@/components/NoticeDisplay'), { ssr: false });
 

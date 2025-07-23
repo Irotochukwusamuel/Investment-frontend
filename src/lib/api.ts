@@ -155,7 +155,8 @@ export const endpoints = {
   settings: {
     withdrawal: '/admin/withdrawals/settings',
     publicWithdrawal: '/settings/withdrawal',
-    bonusWithdrawalPeriod: '/api/settings/bonus-withdrawal-period',
+    bonusWithdrawalPeriod: '/settings/bonus-withdrawal-period',
+    usdtFeatures: '/settings/usdt-features',
   },
   
   // Referrals
@@ -205,12 +206,20 @@ export class ApiError extends Error {
 
 // Helper function to handle API responses
 export const handleApiResponse = <T>(response: any): T => {
-  if (response.data && response.data.success !== false) {
-    return response.data.data || response.data;
+  // If the response has a success field and it's false, throw an error
+  if (response.data && response.data.success === false) {
+    throw new ApiError(
+      response.status,
+      response.data?.message || 'An error occurred',
+      response.data
+    );
   }
-  throw new ApiError(
-    response.status,
-    response.data?.message || 'An error occurred',
-    response.data
-  );
+  
+  // If the response has a data field, return it
+  if (response.data && response.data.data !== undefined) {
+    return response.data.data;
+  }
+  
+  // Otherwise, return the response data directly
+  return response.data;
 }; 

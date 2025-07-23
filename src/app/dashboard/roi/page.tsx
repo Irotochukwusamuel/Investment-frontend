@@ -48,9 +48,10 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments'
+import { useMyInvestments, useInvestmentStats, type Investment } from '@/lib/hooks/useInvestments'
 import { useWithdrawBonus } from '@/lib/hooks/useBonus'
 import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
+import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
 
 interface RoiTransaction {
@@ -86,11 +87,20 @@ const formatDate = (dateString: string) => {
   });
 };
 
+// Helper function to get plan data safely
+const getPlanData = (investment: Investment) => {
+  if (typeof investment.planId === 'object' && investment.planId !== null) {
+    return investment.planId;
+  }
+  return investment.plan;
+};
+
 export default function RoiPage() {
   const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
-  const { data: bonusWithdrawalPeriod = 15, isLoading: bonusPeriodLoading } = useBonusWithdrawalPeriod()
+  const { data: bonusPeriodData, isLoading: bonusPeriodLoading } = useBonusWithdrawalPeriod()
   const withdrawBonusMutation = useWithdrawBonus()
+  const { data: referralStats, isLoading: referralLoading } = useReferralStats()
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [transactionsPerPage] = useState(10)
@@ -98,18 +108,24 @@ export default function RoiPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [lastBonusWithdrawal, setLastBonusWithdrawal] = useState<Date | null>(null)
-  const [activeInvestmentDate] = useState(() => {
-    // Use the earliest investment start date as active date
-    if (investments && investments.length > 0) {
-      return new Date(Math.min(...investments.map(inv => new Date(inv.startDate).getTime())))
-    }
-    const d = new Date();
-    d.setDate(d.getDate() - 16);
-    return d;
-  });
+  const [activeInvestmentDate, setActiveInvestmentDate] = useState<Date>(new Date())
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
 
-  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading
+  // Extract bonus period data with defaults
+  const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
+  const bonusWithdrawalUnit = bonusPeriodData?.unit || 'days';
+  const bonusPeriodMs = bonusPeriodData?.periodMs || (15 * 24 * 60 * 60 * 1000);
+
+  // Update active investment date when investments are loaded
+  useEffect(() => {
+    if (investments && investments.length > 0) {
+      // Use the earliest investment start date as active date
+      const earliestDate = new Date(Math.min(...investments.map(inv => new Date(inv.startDate).getTime())))
+      setActiveInvestmentDate(earliestDate)
+    }
+  }, [investments])
+
+  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || referralLoading
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -119,28 +135,33 @@ export default function RoiPage() {
 
   // Active plans breakdown
   const planBreakdown = investments?.reduce((acc, inv) => {
-    const planName = inv.plan?.name || 'Plan';
+    const planName = getPlanData(inv)?.name || 'Plan';
     acc[planName] = (acc[planName] || 0) + (inv.amount || 0);
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // Calculate total bonus from active investments
-  const totalBonus = investments?.reduce((sum, inv) => {
+  // Calculate total bonus from ALL investments (not just active ones)
+  const totalBonus = (investments?.reduce((sum, inv) => {
+    return sum + (inv.welcomeBonus || 0);
+  }, 0) || 0) + (referralStats?.totalBonus || 0);
+
+  // Calculate total welcome and referral bonuses from ALL investments
+  const totalWelcomeBonus = investments?.reduce((sum, inv) => sum + (inv.welcomeBonus || 0), 0) || 0;
+  const totalReferralBonus = referralStats?.totalBonus || 0;
+
+  // Calculate available bonus (only from active investments for withdrawal)
+  const availableBonus = (investments?.reduce((sum, inv) => {
     if (inv.status === 'active') {
-      return sum + (inv.welcomeBonus || 0) + (inv.referralBonus || 0);
+      return sum + (inv.welcomeBonus || 0);
     }
     return sum;
-  }, 0) || 0;
-
-  // Calculate total welcome and referral bonuses from active investments
-  const totalWelcomeBonus = investments?.reduce((sum, inv) => inv.status === 'active' ? sum + (inv.welcomeBonus || 0) : sum, 0) || 0;
-  const totalReferralBonus = investments?.reduce((sum, inv) => inv.status === 'active' ? sum + (inv.referralBonus || 0) : sum, 0) || 0;
+  }, 0) || 0) + (referralStats?.totalBonus || 0);
 
   // ROI transactions from payouts
   const roiTransactions = investments?.flatMap(investment => 
     investment.payoutHistory?.map(payout => ({
       id: payout.id,
-      plan: investment.plan?.name || 'Investment Plan',
+      plan: getPlanData(investment)?.name || 'Investment Plan',
       amount: formatCurrency(payout.amount, payout.currency),
       date: formatDate(payout.createdAt),
       type: payout.type,
@@ -166,19 +187,30 @@ export default function RoiPage() {
   // Calculate eligibility
   const now = new Date();
   let eligible = false;
-  let daysLeft = 0; // Initialize daysLeft to 0
+  let timeLeft = 0; // Initialize timeLeft to 0
+  let timeLeftDisplay = '0';
   
-  // Check if user has completed their first 15-day period
-  const daysSinceFirstInvestment = daysBetween(activeInvestmentDate, now);
+  // Check if user has completed their first period
+  const timeSinceFirstInvestment = now.getTime() - activeInvestmentDate.getTime();
   
-  if (daysSinceFirstInvestment < bonusWithdrawalPeriod) { // Use 15 days from settings
-    // Still in initial 15-day period
-    daysLeft = bonusWithdrawalPeriod - daysSinceFirstInvestment;
+  if (timeSinceFirstInvestment < bonusPeriodMs) {
+    // Still in initial period
+    timeLeft = bonusPeriodMs - timeSinceFirstInvestment;
     eligible = false;
+    
+    // Calculate time left in the appropriate unit
+    if (bonusWithdrawalUnit === 'minutes') {
+      timeLeftDisplay = `${Math.ceil(timeLeft / (60 * 1000))}m`;
+    } else if (bonusWithdrawalUnit === 'hours') {
+      timeLeftDisplay = `${Math.ceil(timeLeft / (60 * 60 * 1000))}h`;
+    } else {
+      timeLeftDisplay = `${Math.ceil(timeLeft / (24 * 60 * 60 * 1000))}d`;
+    }
   } else {
-    // Initial 15-day period completed - can withdraw anytime
-    daysLeft = 0;
+    // Initial period completed - can withdraw anytime
+    timeLeft = 0;
     eligible = true;
+    timeLeftDisplay = '0';
   }
 
   const handleWithdrawBonus = async () => {
@@ -383,7 +415,7 @@ export default function RoiPage() {
                               <span className="ml-1 cursor-pointer text-blue-400">ⓘ</span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <span>Bonuses are withdrawable after {bonusWithdrawalPeriod} days of active investment. Once unlocked, you can withdraw anytime.</span>
+                              <span>Bonuses are withdrawable after {bonusWithdrawalPeriod} {bonusWithdrawalUnit} of active investment. Once unlocked, you can withdraw anytime.</span>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -442,9 +474,9 @@ export default function RoiPage() {
                         <span className="text-gray-400 text-xs flex items-center gap-1"><LockClosedIcon className="h-4 w-4" />Locked</span>
                       )}
                       <div className="flex-1">
-                        <Progress value={100 * (bonusWithdrawalPeriod - (daysLeft > 0 ? daysLeft : 0)) / bonusWithdrawalPeriod} className="h-2 bg-gray-200" />
+                        <Progress value={100 * (1 - (timeLeft / bonusPeriodMs))} className="h-2 bg-gray-200" />
                       </div>
-                      <span className="text-xs text-gray-500 w-16 text-right">{eligible ? 'Now' : daysLeft > 0 ? daysLeft + 'd' : '0d'}</span>
+                      <span className="text-xs text-gray-500 w-16 text-right">{eligible ? 'Now' : timeLeftDisplay}</span>
                     </div>
                     <Button
                       className={
@@ -453,10 +485,10 @@ export default function RoiPage() {
                       onClick={handleWithdrawBonus}
                       disabled={!eligible}
                     >
-                      {eligible ? 'Withdraw Bonus' : 'Withdraw Bonus (Available in ' + (daysLeft > 0 ? daysLeft : 0) + ' days)'}
+                      {eligible ? 'Withdraw Bonus' : `Withdraw Bonus (Available in ${timeLeftDisplay})`}
                     </Button>
                     {!eligible && (
-                      <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after {bonusWithdrawalPeriod} days of active investment. Once unlocked, you can withdraw bonuses anytime.</p>
+                      <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after {bonusWithdrawalPeriod} {bonusWithdrawalUnit} of active investment. Once unlocked, you can withdraw bonuses anytime.</p>
                     )}
                     {bonusWithdrawn && (
                       <p className="text-xs text-green-600 mt-2 text-center animate-bounce">Bonus withdrawn successfully!</p>

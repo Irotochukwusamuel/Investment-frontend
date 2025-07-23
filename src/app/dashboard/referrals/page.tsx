@@ -32,8 +32,12 @@ export default function ReferralsPage() {
   const { data: user, isLoading: userLoading } = useUser()
   const { data: referrals, isLoading: referralsLoading, error: referralsError } = useReferrals()
   const { data: stats, isLoading: statsLoading } = useReferralStats()
-  const { data: bonusWithdrawalPeriod = 15 } = useBonusWithdrawalPeriod()
+  const { data: bonusPeriodData } = useBonusWithdrawalPeriod()
   const [copied, setCopied] = useState(false)
+
+  // Extract bonus period data with defaults
+  const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
+  const bonusWithdrawalUnit = bonusPeriodData?.unit || 'days';
 
   const handleCopyReferralCode = async () => {
     if (!user?.referralCode) return
@@ -224,7 +228,7 @@ export default function ReferralsPage() {
                   <li>• Share your referral code with friends</li>
                   <li>• They get a welcome bonus on their first investment</li>
                   <li>• You earn referral bonuses when they invest</li>
-                  <li>• Bonuses can be withdrawn after {bonusWithdrawalPeriod} days of active investment, then anytime</li>
+                  <li>• Bonuses can be withdrawn after {bonusWithdrawalPeriod} {bonusWithdrawalUnit} of active investment, then anytime</li>
                 </ul>
               </div>
             </div>

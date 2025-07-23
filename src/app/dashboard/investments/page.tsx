@@ -134,6 +134,14 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Helper function to get plan data safely
+const getPlanData = (investment: Investment) => {
+  if (typeof investment.planId === 'object' && investment.planId !== null) {
+    return investment.planId;
+  }
+  return investment.plan;
+};
+
 export default function InvestmentsPage() {
   const [selectedPlan, setSelectedPlan] = useState<InvestmentPlan | null>(null)
   const [investmentAmount, setInvestmentAmount] = useState('')
@@ -259,7 +267,7 @@ export default function InvestmentsPage() {
   const filteredInvestments = myInvestments?.filter(investment => {
     const matchesStatus = investmentStatusFilter === 'all' || investment.status === investmentStatusFilter;
     const matchesSearch = searchActive === '' || 
-      investment.plan?.name.toLowerCase().includes(searchActive.toLowerCase()) ||
+      getPlanData(investment)?.name.toLowerCase().includes(searchActive.toLowerCase()) ||
       investment.id.toLowerCase().includes(searchActive.toLowerCase());
     return matchesStatus && matchesSearch;
   }) || [];
@@ -632,7 +640,7 @@ export default function InvestmentsPage() {
                                             </span>
                                           </div>
                                         </div>
-                                      </div>
+                                </div>
                                     )}
 
                                     <div className="flex items-center space-x-2">
@@ -744,10 +752,10 @@ export default function InvestmentsPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white">
-                              {getPlanIcon(investment.plan?.name || 'default')}
+                              {getPlanIcon(getPlanData(investment)?.name || 'default')}
                             </div>
                             <div>
-                              <CardTitle className="text-lg">{investment.plan?.name || 'Investment Plan'}</CardTitle>
+                              <CardTitle className="text-lg">{getPlanData(investment)?.name || 'Investment Plan'}</CardTitle>
                               <CardDescription>
                                 Investment ID: {investment.id}
                               </CardDescription>
@@ -847,8 +855,8 @@ export default function InvestmentsPage() {
         investment={createdInvestment ? {
           id: createdInvestment.id,
           plan: {
-            name: createdInvestment.plan.name,
-            currency: createdInvestment.plan.currency,
+            name: getPlanData(createdInvestment)?.name || 'Investment Plan',
+            currency: getPlanData(createdInvestment)?.currency || createdInvestment.currency,
           },
           amount: createdInvestment.amount,
           currency: createdInvestment.currency,

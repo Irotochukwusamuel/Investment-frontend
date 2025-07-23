@@ -506,22 +506,22 @@ export default function WalletPage() {
                         {balance.currency === 'USDT' && !usdtSettings?.usdtInvestmentEnabled ? 'Coming Soon' : 'Deposit'}
                       </Button>
 
-                      <Button
-                        onClick={() => {
-                          setSelectedCurrency(balance.currency)
-                          if (balance.currency === 'NGN') {
-                            setShowNgnWithdrawDialog(true)
-                          } else {
-                            setShowUsdtWithdrawDialog(true)
-                          }
-                        }}
+                          <Button
+                            onClick={() => {
+                              setSelectedCurrency(balance.currency)
+                              if (balance.currency === 'NGN') {
+                                setShowNgnWithdrawDialog(true)
+                              } else {
+                                setShowUsdtWithdrawDialog(true)
+                              }
+                            }}
                         disabled={balance.currency === 'USDT' && !usdtSettings?.usdtWithdrawalEnabled}
-                        variant="outline"
+                            variant="outline"
                         className="w-full sm:w-auto h-12 px-6 py-3 border-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ArrowUpIcon className="mr-2 h-4 w-4" />
+                          >
+                            <ArrowUpIcon className="mr-2 h-4 w-4" />
                         {balance.currency === 'USDT' && !usdtSettings?.usdtWithdrawalEnabled ? 'Coming Soon' : 'Withdraw'}
-                      </Button>
+                          </Button>
                     </div>
                   </div>
                 </CardContent>

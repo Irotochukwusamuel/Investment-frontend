@@ -104,6 +104,8 @@ export default function InvestmentPlansComponent() {
     terms: [] as string[],
     featured: false,
     popularity: 0,
+    welcomeBonus: 0,
+    referralBonus: 0,
   });
 
   // Plan templates
@@ -116,6 +118,8 @@ export default function InvestmentPlansComponent() {
       dailyRoi: 0.5,
       totalRoi: 15,
       duration: 30,
+      welcomeBonus: 2.0,
+      referralBonus: 1.0,
       features: ['Low risk', 'Steady returns', 'Daily payouts', '24/7 support'],
       terms: ['Minimum investment: ₦10,000', 'Maximum investment: ₦100,000', '30-day duration']
     },
@@ -127,6 +131,8 @@ export default function InvestmentPlansComponent() {
       dailyRoi: 1.2,
       totalRoi: 36,
       duration: 30,
+      welcomeBonus: 3.0,
+      referralBonus: 2.0,
       features: ['High returns', 'Priority support', 'Bonus rewards', 'Referral bonuses'],
       terms: ['Minimum investment: ₦100,000', 'Maximum investment: ₦1,000,000', '30-day duration']
     },
@@ -138,6 +144,8 @@ export default function InvestmentPlansComponent() {
       dailyRoi: 2.0,
       totalRoi: 60,
       duration: 30,
+      welcomeBonus: 5.0,
+      referralBonus: 3.0,
       features: ['Maximum returns', 'VIP support', 'Exclusive bonuses', 'Personal manager'],
       terms: ['Minimum investment: ₦1,000,000', 'Maximum investment: ₦10,000,000', '30-day duration']
     }
@@ -343,6 +351,8 @@ export default function InvestmentPlansComponent() {
       terms: template.terms || [],
       featured: false,
       popularity: 0,
+      welcomeBonus: template.welcomeBonus,
+      referralBonus: template.referralBonus,
     });
     setShowTemplatesDialog(false);
     setShowCreateDialog(true);
@@ -365,13 +375,15 @@ export default function InvestmentPlansComponent() {
       terms: [],
       featured: false,
       popularity: 0,
+      welcomeBonus: 0,
+      referralBonus: 0,
     });
   };
 
   // Handle form changes
   const handleFormChange = (field: string, value: any) => {
     // Convert numeric fields to proper types
-    if (['minAmount', 'maxAmount', 'dailyRoi', 'totalRoi', 'duration', 'priority', 'popularity'].includes(field)) {
+    if (['minAmount', 'maxAmount', 'dailyRoi', 'totalRoi', 'duration', 'priority', 'popularity', 'welcomeBonus', 'referralBonus'].includes(field)) {
       const numValue = value === '' ? 0 : parseFloat(value);
       if (isNaN(numValue)) return; // Don't update if invalid number
       setFormData(prev => ({ ...prev, [field]: numValue }));
@@ -448,6 +460,14 @@ export default function InvestmentPlansComponent() {
       errors.push('Popularity must be between 0 and 100');
     }
     
+    if (data.welcomeBonus < 0 || data.welcomeBonus > 100) {
+      errors.push('Welcome bonus must be between 0 and 100');
+    }
+
+    if (data.referralBonus < 0 || data.referralBonus > 100) {
+      errors.push('Referral bonus must be between 0 and 100');
+    }
+    
     return errors;
   };
 
@@ -473,6 +493,8 @@ export default function InvestmentPlansComponent() {
       terms: plan.terms || [],
       featured: plan.featured,
       popularity: plan.popularity,
+      welcomeBonus: plan.welcomeBonus,
+      referralBonus: plan.referralBonus,
     });
     setShowEditDialog(true);
   };
@@ -993,6 +1015,32 @@ export default function InvestmentPlansComponent() {
                   className="h-10"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="welcomeBonus" className="text-sm font-medium">Welcome Bonus (%)</Label>
+                  <Input
+                    id="welcomeBonus"
+                    type="number"
+                    step="0.01"
+                    value={formData.welcomeBonus}
+                    onChange={(e) => handleFormChange('welcomeBonus', e.target.value)}
+                    placeholder="0.00"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referralBonus" className="text-sm font-medium">Referral Bonus (%)</Label>
+                  <Input
+                    id="referralBonus"
+                    type="number"
+                    step="0.01"
+                    value={formData.referralBonus}
+                    onChange={(e) => handleFormChange('referralBonus', e.target.value)}
+                    placeholder="0.00"
+                    className="h-10"
+                  />
+                </div>
+              </div>
             </TabsContent>
             
             <TabsContent value="features" className="space-y-6">
@@ -1083,6 +1131,28 @@ export default function InvestmentPlansComponent() {
                     type="number"
                     value={formData.popularity}
                     onChange={(e) => handleFormChange('popularity', e.target.value)}
+                    placeholder="0"
+                    className="h-10"
+                  />
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Label htmlFor="welcomeBonus" className="text-sm font-medium">Welcome Bonus (%)</Label>
+                  <Input
+                    id="welcomeBonus"
+                    type="number"
+                    value={formData.welcomeBonus}
+                    onChange={(e) => handleFormChange('welcomeBonus', e.target.value)}
+                    placeholder="0"
+                    className="h-10"
+                  />
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Label htmlFor="referralBonus" className="text-sm font-medium">Referral Bonus (%)</Label>
+                  <Input
+                    id="referralBonus"
+                    type="number"
+                    value={formData.referralBonus}
+                    onChange={(e) => handleFormChange('referralBonus', e.target.value)}
                     placeholder="0"
                     className="h-10"
                   />

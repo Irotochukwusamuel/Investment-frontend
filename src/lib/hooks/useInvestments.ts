@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, endpoints, handleApiResponse } from '../api';
 import { toast } from 'sonner';
+import { useUser } from './useAuth';
 
 // Types
 export interface InvestmentPlan {
@@ -35,8 +36,8 @@ export interface InvestmentPlan {
 export interface Investment {
   id: string;
   userId: string;
-  planId: string;
-  plan: InvestmentPlan;
+  planId: string | InvestmentPlan;
+  plan?: InvestmentPlan;
   amount: number;
   currency: 'naira' | 'usdt';
   dailyRoi: number;
@@ -184,11 +185,15 @@ export const useCancelInvestment = () => {
 };
 
 export const useInvestmentStats = () => {
+  const { data: user } = useUser();
+  const userId = user?.id;
+
   return useQuery({
-    queryKey: ['investments', 'stats'],
+    queryKey: ['investments', 'stats', userId],
     queryFn: async () => {
-      const response = await api.get(endpoints.investments.stats);
+      const response = await api.get(`${endpoints.investments.stats}${userId ? `?userId=${userId}` : ''}`);
       return handleApiResponse<InvestmentStats>(response);
     },
+    enabled: !!userId, // Only run the query when we have a user ID
   });
 }; 

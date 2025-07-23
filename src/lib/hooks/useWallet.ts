@@ -347,7 +347,15 @@ export const useBonusWithdrawalPeriod = () => {
     queryKey: ['settings', 'bonusWithdrawalPeriod'],
     queryFn: async () => {
       const response = await api.get(endpoints.settings.bonusWithdrawalPeriod);
-      return response.data.bonusWithdrawalPeriod || 15;
+      const data = response.data;
+      
+      // Return both value and unit, with defaults
+      return {
+        value: data.bonusWithdrawalPeriod || 15,
+        unit: data.bonusWithdrawalUnit || 'days',
+        periodMs: data.bonusWithdrawalPeriodMs || (15 * 24 * 60 * 60 * 1000), // 15 days in ms
+        displayText: `${data.bonusWithdrawalPeriod || 15} ${data.bonusWithdrawalUnit || 'days'}`
+      };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000,

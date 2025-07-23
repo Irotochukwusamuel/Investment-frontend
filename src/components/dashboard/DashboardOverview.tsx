@@ -2,7 +2,7 @@
 
 import { useUser } from '@/lib/hooks/useAuth';
 import { useWalletBalance, useTransactionHistory } from '@/lib/hooks/useWallet';
-import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments';
+import { useMyInvestments, useInvestmentStats, type Investment } from '@/lib/hooks/useInvestments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -18,6 +18,14 @@ import {
   Coins
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+
+// Helper function to get plan data safely
+const getPlanData = (investment: Investment) => {
+  if (typeof investment.planId === 'object' && investment.planId !== null) {
+    return investment.planId;
+  }
+  return investment.plan;
+};
 
 export function DashboardOverview() {
   const { data: user, isLoading: userLoading } = useUser();
@@ -156,7 +164,7 @@ export function DashboardOverview() {
                         <TrendingUp className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{investment.plan?.name || 'Investment Plan'}</p>
+                        <p className="font-medium">{getPlanData(investment)?.name || 'Investment Plan'}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatCurrency(investment.amount, investment.currency?.toUpperCase() || 'NGN')}
                         </p>
