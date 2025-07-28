@@ -30,6 +30,7 @@ export default function LandingLayout({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [logoError, setLogoError] = useState(false)
   const pathname = usePathname()
   const { setTheme, resolvedTheme } = useTheme()
 
@@ -41,6 +42,8 @@ export default function LandingLayout({
     return null
   }
 
+  const logoSrc = resolvedTheme === 'dark' ? '/logo-dark.png' : '/logo-light.png'
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -51,7 +54,17 @@ export default function LandingLayout({
       >
         <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-3">
+            {!logoError ? (
+              <img
+                src={logoSrc}
+                alt="KLTMINES Logo"
+                className="h-8 w-8 rounded-lg bg-white object-contain"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+            )}
             <span className="text-2xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">KLTMINES</span>
           </Link>
           {/* Desktop Nav */}
@@ -167,9 +180,21 @@ export default function LandingLayout({
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div className="space-y-4">
-              <h3 className="text-lg font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                KLTMINES
-              </h3>
+              <div className="flex items-center space-x-3">
+                {!logoError ? (
+                  <img
+                    src={logoSrc}
+                    alt="KLTMINES Logo"
+                    className="h-8 w-8 rounded-lg bg-white object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966]" />
+                )}
+                <h3 className="text-lg font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
+                  KLTMINES
+                </h3>
+              </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Your trusted partner in smart investments and financial growth.
               </p>

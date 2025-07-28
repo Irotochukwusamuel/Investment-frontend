@@ -154,12 +154,12 @@ export const useWalletBalance = () => {
           usdt: 0,
         },
         lockedBalances: {
-          naira: 0,
-          usdt: 0,
+          naira: mainWallet.lockedNairaBonuses || 0,
+          usdt: mainWallet.lockedUsdtBonuses || 0,
         },
         totalBalance: {
-          naira: mainWallet.nairaBalance || 0,
-          usdt: mainWallet.usdtBalance || 0,
+          naira: (mainWallet.nairaBalance || 0) + (mainWallet.lockedNairaBonuses || 0),
+          usdt: (mainWallet.usdtBalance || 0) + (mainWallet.lockedUsdtBonuses || 0),
         },
         totalInvested: mainWallet.totalInvestments || 0,
         totalEarnings: mainWallet.totalEarnings || 0,

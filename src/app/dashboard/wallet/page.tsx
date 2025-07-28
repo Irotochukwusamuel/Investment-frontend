@@ -146,16 +146,16 @@ export default function WalletPage() {
     {
       currency: 'NGN',
       amount: walletBalance?.totalBalance?.naira || 0,
-      available: walletBalance?.walletBalances?.naira || 0,
+      available: walletBalance?.walletBalances?.naira || 0, // Available balance (excludes locked bonuses)
       pending: 0, // Backend doesn't provide pending amounts yet
-      locked: 0, // Backend doesn't provide locked amounts yet
+      locked: walletBalance?.lockedBalances?.naira || 0, // Locked bonuses
     },
     {
       currency: 'USDT',
       amount: walletBalance?.totalBalance?.usdt || 0,
-      available: walletBalance?.walletBalances?.usdt || 0,
+      available: walletBalance?.walletBalances?.usdt || 0, // Available balance (excludes locked bonuses)
       pending: 0,
-      locked: 0,
+      locked: walletBalance?.lockedBalances?.usdt || 0, // Locked bonuses
     },
   ]
 
