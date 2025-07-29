@@ -22,7 +22,7 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { AnimatePresence, animate, useMotionValue, useTransform } from 'framer-motion'
 import LandingLayout from './LandingLayout'
 import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
@@ -126,11 +126,23 @@ const faqs = [
 
 export default function LandingPageContent() {
   const { data: usdtSettings } = useUsdtSettings()
-  const { data: investmentPlans } = useInvestmentPlans()
+  const { data: investmentPlans, isLoading, error } = useInvestmentPlans();
+
+  // Debug logging to help troubleshoot backend integration
+  useEffect(() => {
+    if (investmentPlans) {
+      console.log('Investment Plans from Backend:', {
+        totalPlans: investmentPlans.length,
+        usdtPlans: investmentPlans.filter((p: any) => p.currency === 'usdt').length,
+        nairaPlans: investmentPlans.filter((p: any) => p.currency === 'naira').length,
+        plans: investmentPlans
+      });
+    }
+  }, [investmentPlans]);
 
   const AnimatedCounter = ({ value, precision = 0 }: { value: number; precision?: number }) => {
     const count = useMotionValue(0)
-    const rounded = useTransform(count, (latest) => latest.toFixed(precision))
+    const rounded = useTransform(count, (latest: number) => latest.toFixed(precision))
 
     useEffect(() => {
       const controls = animate(count, value, { duration: 0.8, ease: "easeOut" })
@@ -143,77 +155,167 @@ export default function LandingPageContent() {
   const InvestmentCalculator = () => {
     const [currency, setCurrency] = useState<'usdt' | 'naira'>(usdtSettings?.usdtInvestmentEnabled ? 'usdt' : 'naira');
     
-    // Use real investment plans from API
-    const plans = investmentPlans?.filter(plan => plan.currency === currency) || [];
-    const minAmount = plans.length > 0 ? Math.min(...plans.map(p => p.minAmount)) : 0;
-    const maxAmount = plans.length > 0 ? Math.max(...plans.map(p => p.maxAmount)) : 0;
+    // Normalize plans data to ensure consistent structure
+    const normalizePlans = (plans: any[]) => {
+      return plans.map(plan => ({
+        name: plan.name,
+        min: plan.minAmount || plan.min,
+        max: plan.maxAmount || plan.max,
+        dailyROI: plan.dailyRoi || plan.dailyROI,
+        welcomeBonus: plan.welcomeBonus,
+        referralBonus: plan.referralBonus,
+        currency: plan.currency
+      }));
+    };
+    
+    // Filter and normalize plans by currency from backend or use fallback
+    const plans = useMemo(() => {
+      const backendPlans = investmentPlans?.filter((plan: any) => plan.currency === currency) || [];
+      
+      // Use backend plans if available, otherwise show error
+      if (backendPlans.length === 0) {
+        return []; // Return empty array if no plans found
+      }
+      return normalizePlans(backendPlans);
+    }, [investmentPlans, currency]);
+    
+    const minAmount = plans.length > 0 ? Math.min(...plans.map(p => p.min)) : (currency === 'usdt' ? 50 : 5000);
+    const maxAmount = plans.length > 0 ? Math.max(...plans.map(p => p.max)) : (currency === 'usdt' ? 10000 : 1000000);
+
+    // Check if currencies are enabled (you can extend this for Naira if needed)
+    const isUsdtEnabled = usdtSettings?.usdtInvestmentEnabled ?? false;
+    const isNairaEnabled = true; // Set to false if you want to disable Naira
 
     const [amount, setAmount] = useState(currency === 'usdt' ? 50 : 50000);
+    const [inputValue, setInputValue] = useState('');
 
+    // Initialize amount when plans change
     useEffect(() => {
       if (plans.length > 0) {
-        // Set to middle plan's min amount
         const middlePlan = plans[Math.floor(plans.length / 2)];
-        setAmount(middlePlan.minAmount);
+        const newAmount = Math.max(middlePlan.min, 0);
+        setAmount(newAmount);
+        setInputValue(newAmount.toLocaleString());
       }
-    }, [currency, plans]);
+    }, [plans]);
 
+    // Handle currency settings - switch to enabled currency if current is disabled
     useEffect(() => {
-      if (!usdtSettings?.usdtInvestmentEnabled && currency === 'usdt') {
+      if (!isUsdtEnabled && currency === 'usdt') {
         setCurrency('naira');
       }
-    }, [usdtSettings?.usdtInvestmentEnabled, currency]);
+      if (!isNairaEnabled && currency === 'naira') {
+        setCurrency('usdt');
+      }
+    }, [isUsdtEnabled, isNairaEnabled, currency]);
 
     const handleAmountChange = (value: string) => {
       if (value === '') {
         setAmount(0);
+        setInputValue('');
         return;
       }
       const numValue = Number(value.replace(/,/g, ''));
       if (!isNaN(numValue)) {
         setAmount(numValue);
+        setInputValue(value);
       }
     };
 
     const handleBlur = () => {
-      if (amount === 0) return;
+      if (amount === 0) {
+        setInputValue('');
+        return;
+      }
 
-      const selectedPlan = [...plans].reverse().find(p => amount >= p.minAmount);
+      const selectedPlan = [...plans].reverse().find(p => amount >= p.min);
 
       if (!selectedPlan) {
         setAmount(minAmount);
-      } else if (amount > selectedPlan.maxAmount) {
-        setAmount(selectedPlan.maxAmount);
+        setInputValue(minAmount.toLocaleString());
+      } else if (amount > selectedPlan.max) {
+        setAmount(selectedPlan.max);
+        setInputValue(selectedPlan.max.toLocaleString());
       } else if (amount < minAmount) {
         setAmount(minAmount);
+        setInputValue(minAmount.toLocaleString());
+      } else {
+        setInputValue(amount.toLocaleString());
       }
     };
 
     const handleSliderChange = (value: number[]) => {
-      setAmount(value[0]);
+      const newAmount = value[0];
+      setAmount(newAmount);
+      setInputValue(newAmount.toLocaleString());
     };
 
-    const plan = [...plans].reverse().find(p => amount >= p.minAmount);
+    const plan = [...plans].reverse().find(p => amount >= p.min);
 
-    const dailyReturn = plan ? amount * (plan.dailyRoi / 100) : 0;
+    const dailyReturn = plan ? amount * (plan.dailyROI / 100) : 0;
     const hourlyReturn = dailyReturn / 24;
     const monthlyReturn = dailyReturn * 30;
     const welcomeBonusValue = plan ? amount * (plan.welcomeBonus / 100) : 0;
 
+    // Show loading state while fetching plans
+    if (isLoading) {
+      return (
+        <Card className="relative overflow-hidden rounded-3xl border-2 border-white/20 bg-gray-900/50 p-2 shadow-2xl backdrop-blur-xl">
+          <div className="absolute -inset-4 z-0 animate-gradient-move-slow bg-gradient-to-br from-purple-600/20 via-orange-500/20 to-red-600/20 blur-2xl" />
+          <div className="relative z-10 rounded-2xl bg-white/60 p-8 shadow-inner backdrop-blur-md dark:bg-gray-900/60">
+            <div className="text-center space-y-4">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Investment Calculator</h3>
+              <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // Show error state if API fails or no plans found
+    if (error || plans.length === 0) {
+      return (
+        <Card className="relative overflow-hidden rounded-3xl border-2 border-white/20 bg-gray-900/50 p-2 shadow-2xl backdrop-blur-xl">
+          <div className="absolute -inset-4 z-0 animate-gradient-move-slow bg-gradient-to-br from-purple-600/20 via-orange-500/20 to-red-600/20 blur-2xl" />
+          <div className="relative z-10 rounded-2xl bg-white/60 p-8 shadow-inner backdrop-blur-md dark:bg-gray-900/60">
+            <div className="text-center space-y-4">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Investment Calculator</h3>
+              {error ? (
+                <>
+                  <p className="text-gray-600 dark:text-gray-300">Unable to load investment plans</p>
+                  <p className="text-sm text-gray-500">Please try again later or contact support.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-600 dark:text-gray-300">No investment plans available</p>
+                  <p className="text-sm text-gray-500">Please check back later or contact support to set up investment plans.</p>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // Show coming soon message if both currencies are disabled
+    if (!isUsdtEnabled && !isNairaEnabled) {
+      return (
+        <Card className="relative overflow-hidden rounded-3xl border-2 border-white/20 bg-gray-900/50 p-2 shadow-2xl backdrop-blur-xl">
+          <div className="absolute -inset-4 z-0 animate-gradient-move-slow bg-gradient-to-br from-purple-600/20 via-orange-500/20 to-red-600/20 blur-2xl" />
+          <div className="relative z-10 rounded-2xl bg-white/60 p-8 shadow-inner backdrop-blur-md dark:bg-gray-900/60">
+            <div className="text-center space-y-4">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Investment Calculator</h3>
+              <p className="text-gray-600 dark:text-gray-300">Coming Soon</p>
+              <p className="text-sm text-gray-500">We're working hard to bring you the best investment experience.</p>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
     return (
       <Card className="relative overflow-hidden rounded-3xl border-2 border-white/20 bg-gray-900/50 p-2 shadow-2xl backdrop-blur-xl">
         <div className="absolute -inset-4 z-0 animate-gradient-move-slow bg-gradient-to-br from-purple-600/20 via-orange-500/20 to-red-600/20 blur-2xl" />
-        <style jsx global>{`
-          @keyframes gradient-move-slow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-          .animate-gradient-move-slow {
-            background-size: 200% 200%;
-            animation: gradient-move-slow 15s ease-in-out infinite;
-          }
-        `}</style>
         <div className="relative z-10 grid grid-cols-1 gap-8 rounded-2xl bg-white/60 p-8 shadow-inner backdrop-blur-md dark:bg-gray-900/60 md:grid-cols-2">
           {/* Left side: Inputs */}
           <motion.div 
@@ -232,23 +334,37 @@ export default function LandingPageContent() {
               <div className="flex space-x-1 rounded-full bg-gray-200 dark:bg-gray-700 p-1">
                 <button
                   onClick={() => setCurrency('usdt')}
-                  disabled={!usdtSettings?.usdtInvestmentEnabled}
+                  disabled={!isUsdtEnabled}
                   className={`relative px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {currency === 'usdt' && <motion.span layoutId="calculator-currency-bg" className="absolute inset-0 rounded-full bg-white dark:bg-gray-900 shadow" />}
-                  <span className="relative z-10">
-                    {!usdtSettings?.usdtInvestmentEnabled ? 'USDT (Coming Soon)' : 'USDT'}
+                  {currency === 'usdt' && isUsdtEnabled && <motion.span layoutId="calculator-currency-bg" className="absolute inset-0 rounded-full bg-white dark:bg-gray-900 shadow" />}
+                  <span className="relative z-10 flex items-center gap-1">
+                    {!isUsdtEnabled && <span className="text-xs text-gray-500">🚧</span>}
+                    {!isUsdtEnabled ? 'USDT (Coming Soon)' : 'USDT'}
                   </span>
                 </button>
                 <button
                   onClick={() => setCurrency('naira')}
-                  className={`relative px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white transition-colors duration-300`}
+                  disabled={!isNairaEnabled}
+                  className={`relative px-4 py-2 text-sm font-semibold text-gray-800 dark:text-white transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {currency === 'naira' && <motion.span layoutId="calculator-currency-bg" className="absolute inset-0 rounded-full bg-white dark:bg-gray-900 shadow" />}
-                  <span className="relative z-10">Naira</span>
+                  {currency === 'naira' && isNairaEnabled && <motion.span layoutId="calculator-currency-bg" className="absolute inset-0 rounded-full bg-white dark:bg-gray-900 shadow" />}
+                  <span className="relative z-10 flex items-center gap-1">
+                    {!isNairaEnabled && <span className="text-xs text-gray-500">🚧</span>}
+                    {!isNairaEnabled ? 'Naira (Coming Soon)' : 'Naira'}
+                  </span>
                 </button>
               </div>
             </div>
+            
+            {/* Show warning if selected currency is disabled */}
+            {((currency === 'usdt' && !isUsdtEnabled) || (currency === 'naira' && !isNairaEnabled)) && (
+              <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 dark:bg-yellow-900/20 dark:border-yellow-800">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⚠️ {currency.toUpperCase()} investments are coming soon. Please select an available currency.
+                </p>
+              </div>
+            )}
             
             <div>
               <Label htmlFor="investment-amount" className="text-sm font-medium text-gray-700 dark:text-gray-300">Investment Amount ({currency === 'usdt' ? 'USDT' : 'NGN'})</Label>
@@ -257,12 +373,13 @@ export default function LandingPageContent() {
                 <Input
                   id="investment-amount"
                   type="text"
-                  value={amount === 0 ? '' : amount.toLocaleString()}
-                  onChange={(e) => handleAmountChange(e.target.value)}
+                  value={inputValue}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAmountChange(e.target.value)}
                   onBlur={handleBlur}
                   className="w-full rounded-full border-2 border-gray-200 bg-white py-3 pl-10 pr-4 text-2xl font-bold text-gray-900 focus:border-[#ff7e5f] focus:ring-[#ff7e5f] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   min={minAmount}
                   max={maxAmount}
+                  key={`investment-amount-${currency}-${plans.length}`}
                 />
               </div>
             </div>
