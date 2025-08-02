@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  // Static export for cPanel deployment
+  output: 'export',
+  trailingSlash: true,
   // Mobile optimizations
   experimental: {
     optimizeCss: true,
@@ -27,6 +30,7 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    unoptimized: true, // Required for static export
   },
   // Headers for better mobile experience
   async headers() {
