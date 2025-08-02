@@ -2,7 +2,7 @@
 
 A modern React/Next.js frontend for the investment platform with comprehensive features including user authentication, wallet management, investments, and admin functionality.
 
-## Features.
+## Features..
 
 ### Authentication & Security
 - **Session Timeout**: Automatic logout after 30 minutes of inactivity
