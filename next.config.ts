@@ -17,42 +17,12 @@ const nextConfig: NextConfig = {
   // Static export for cPanel deployment
   output: 'export',
   trailingSlash: true,
-  // Mobile optimizations
-  experimental: {
-    optimizeCss: true,
-    optimizePackageImports: ['@heroicons/react', 'framer-motion'],
-  },
   // Performance optimizations
   compress: true,
   poweredByHeader: false,
-  // Image optimization
+  // Image optimization for static export
   images: {
-    formats: ['image/webp', 'image/avif'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     unoptimized: true, // Required for static export
-  },
-  // Headers for better mobile experience
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-        ],
-      },
-    ];
   },
 };
 
