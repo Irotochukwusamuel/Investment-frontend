@@ -27,9 +27,25 @@ jobs:
       env:
         NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         
-    - name: Copy .htaccess
-      run: cp .htaccess out/.htaccess
-      
+    - name: Verify build output
+      run: |
+        if [ ! -d "out" ]; then
+          echo "❌ Build output directory 'out' not found!"
+          exit 1
+        fi
+        echo "✅ Build output directory found"
+        ls -la out/
+        
+    - name: Copy .htaccess to build output
+      run: |
+        if [ -f ".htaccess" ]; then
+          cp .htaccess out/.htaccess
+          echo "✅ .htaccess copied successfully"
+        else
+          echo "❌ .htaccess file not found in root directory"
+          exit 1
+        fi
+        
     - name: Deploy to cPanel
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
