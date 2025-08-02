@@ -92,8 +92,8 @@ export function WithdrawalDialog({
   }, [currency, open]);
 
   const availableBalance = currency === 'naira' 
-    ? walletBalance?.totalBalance?.naira || 0
-    : walletBalance?.totalBalance?.usdt || 0;
+    ? walletBalance?.walletBalances?.naira || 0
+    : walletBalance?.walletBalances?.usdt || 0;
 
   // Update fee calculation to use backend settings
   const calculateFee = (amount: number) => {

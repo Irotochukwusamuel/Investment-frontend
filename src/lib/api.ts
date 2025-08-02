@@ -96,6 +96,7 @@ export const endpoints = {
     stats: '/investments/stats',
     active: '/investments/active',
     byCurrency: (currency: string) => `/investments/currency/${currency}`,
+    withdrawDailyRoi: '/investments/withdraw-daily-roi',
   },
   
   // Transactions

@@ -62,28 +62,60 @@ export default function WithdrawalsPage() {
 
   // Calculate withdrawal statistics
   const calculateWithdrawalStats = () => {
-    const totalWithdrawn = withdrawalTransactions
-      .filter(t => t.status === 'completed')
+    const totalWithdrawnNaira = withdrawalTransactions
+      .filter(t => t.status === 'completed' && t.currency === 'naira')
       .reduce((sum, t) => sum + t.amount, 0)
     
-    const pendingWithdrawals = withdrawalTransactions
-      .filter(t => t.status === 'pending')
+    const totalWithdrawnUsdt = withdrawalTransactions
+      .filter(t => t.status === 'completed' && t.currency === 'usdt')
+      .reduce((sum, t) => sum + t.amount, 0)
+    
+    const pendingWithdrawalsNaira = withdrawalTransactions
+      .filter(t => t.status === 'pending' && t.currency === 'naira')
       .reduce((sum, t) => sum + t.amount, 0)
 
-    const thisMonthWithdrawals = withdrawalTransactions
+    const pendingWithdrawalsUsdt = withdrawalTransactions
+      .filter(t => t.status === 'pending' && t.currency === 'usdt')
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    const thisMonthWithdrawalsNaira = withdrawalTransactions
       .filter(t => {
         const transactionDate = new Date(t.createdAt)
         const now = new Date()
         return transactionDate.getMonth() === now.getMonth() && 
                transactionDate.getFullYear() === now.getFullYear() &&
-               t.status === 'completed'
+               t.status === 'completed' && t.currency === 'naira'
       })
       .reduce((sum, t) => sum + t.amount, 0)
 
-    return { totalWithdrawn, pendingWithdrawals, thisMonthWithdrawals }
+    const thisMonthWithdrawalsUsdt = withdrawalTransactions
+      .filter(t => {
+        const transactionDate = new Date(t.createdAt)
+        const now = new Date()
+        return transactionDate.getMonth() === now.getMonth() && 
+               transactionDate.getFullYear() === now.getFullYear() &&
+               t.status === 'completed' && t.currency === 'usdt'
+      })
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    return { 
+      totalWithdrawnNaira, 
+      totalWithdrawnUsdt, 
+      pendingWithdrawalsNaira, 
+      pendingWithdrawalsUsdt, 
+      thisMonthWithdrawalsNaira, 
+      thisMonthWithdrawalsUsdt 
+    }
   }
 
-  const { totalWithdrawn, pendingWithdrawals, thisMonthWithdrawals } = calculateWithdrawalStats()
+  const { 
+    totalWithdrawnNaira, 
+    totalWithdrawnUsdt, 
+    pendingWithdrawalsNaira, 
+    pendingWithdrawalsUsdt, 
+    thisMonthWithdrawalsNaira, 
+    thisMonthWithdrawalsUsdt 
+  } = calculateWithdrawalStats()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -150,6 +182,7 @@ export default function WithdrawalsPage() {
               <li>• Only ROI earnings can be withdrawn, not deposited amounts</li>
               <li>• You must have active investments to withdraw</li>
               <li>• Withdrawal fee applies to all transactions</li>
+              <li>• Locked bonuses are not available for withdrawal until activation period</li>
             </ul>
           </div>
         </div>
@@ -160,7 +193,7 @@ export default function WithdrawalsPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm">
               <WalletIcon className="h-4 w-4" />
-              Available Balance: {formatCurrency(walletBalance?.totalBalance?.naira || 0, 'naira')}
+              Available Balance: {formatCurrency(walletBalance?.walletBalances?.naira || 0, 'naira')} / {formatCurrency(walletBalance?.walletBalances?.usdt || 0, 'usdt')}
             </Badge>
           </motion.div>
           <motion.div
@@ -169,7 +202,7 @@ export default function WithdrawalsPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm">
               <ClockIcon className="h-4 w-4" />
-              Pending: {formatCurrency(pendingWithdrawals, 'naira')}
+              Pending: {formatCurrency(pendingWithdrawalsNaira, 'naira')} / {formatCurrency(pendingWithdrawalsUsdt, 'usdt')}
             </Badge>
           </motion.div>
         </div>
@@ -217,12 +250,33 @@ export default function WithdrawalsPage() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(walletBalance?.totalBalance?.naira || 0, 'naira')}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(walletBalance?.walletBalances?.naira || 0, 'naira')}</p>
+                      <p className="text-lg font-semibold text-blue-600 mt-1">
+                        {formatCurrency(walletBalance?.walletBalances?.usdt || 0, 'usdt')}
+                      </p>
                       <p className="text-sm text-gray-500">Total available</p>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Minimum Withdrawal</span>
                       <span className="font-medium">₦2,000</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      <div className="flex justify-between">
+                        <span>Total Balance:</span>
+                        <span>{formatCurrency(walletBalance?.totalBalance?.naira || 0, 'naira')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Available Balance:</span>
+                        <span className="text-green-600 font-medium">{formatCurrency(walletBalance?.walletBalances?.naira || 0, 'naira')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Pending Withdrawals:</span>
+                        <span className="text-yellow-600 font-medium">{formatCurrency(pendingWithdrawalsNaira, 'naira')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Locked Bonuses:</span>
+                        <span className="text-blue-600 font-medium">{formatCurrency(walletBalance?.lockedBalances?.naira || 0, 'naira')}</span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -252,7 +306,10 @@ export default function WithdrawalsPage() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(pendingWithdrawals, 'naira')}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(pendingWithdrawalsNaira, 'naira')}</p>
+                      <p className="text-lg font-semibold text-blue-600 mt-1">
+                        {formatCurrency(pendingWithdrawalsUsdt, 'usdt')}
+                      </p>
                       <p className="text-sm text-gray-500">Processing</p>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -287,12 +344,15 @@ export default function WithdrawalsPage() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(totalWithdrawn, 'naira')}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(totalWithdrawnNaira, 'naira')}</p>
+                      <p className="text-lg font-semibold text-blue-600 mt-1">
+                        {formatCurrency(totalWithdrawnUsdt, 'usdt')}
+                      </p>
                       <p className="text-sm text-gray-500">Total withdrawn</p>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">This Month</span>
-                      <span className="font-medium">{formatCurrency(thisMonthWithdrawals, 'naira')}</span>
+                      <span className="font-medium">{formatCurrency(thisMonthWithdrawalsNaira, 'naira')} / {formatCurrency(thisMonthWithdrawalsUsdt, 'usdt')}</span>
                     </div>
                   </div>
                 </CardContent>

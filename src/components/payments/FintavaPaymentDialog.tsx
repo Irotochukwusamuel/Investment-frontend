@@ -328,8 +328,7 @@ export function FintavaPaymentDialog({ open, onOpenChange, onSuccess, initialAmo
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Important:</strong> Transfer exactly ₦{virtualWallet.amount.toLocaleString()} 
-                      to the account above. Your wallet will be credited automatically once payment is confirmed.
+                      <strong>Important:</strong> Transfer exactly ₦{virtualWallet.amount.toLocaleString()} to the account above. Your wallet will be credited automatically once payment is confirmed.
                     </AlertDescription>
                   </Alert>
                 </>

@@ -21,8 +21,11 @@ export interface ReferralStats {
   totalReferrals: number
   activeReferrals: number
   totalEarnings: number
+  totalEarningsUsdt: number
   totalBonus: number
+  totalBonusUsdt: number
   pendingBonus: number
+  pendingBonusUsdt: number
 }
 
 export interface ReferralsResponse {
@@ -86,8 +89,11 @@ export function useReferralStats() {
           totalReferrals: 0,
           activeReferrals: 0,
           totalEarnings: 0,
+          totalEarningsUsdt: 0,
           totalBonus: 0,
-          pendingBonus: 0
+          totalBonusUsdt: 0,
+          pendingBonus: 0,
+          pendingBonusUsdt: 0
         }
       }
     },

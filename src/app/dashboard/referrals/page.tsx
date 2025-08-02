@@ -237,7 +237,7 @@ export default function ReferralsPage() {
       </motion.div>
 
       {/* Enhanced Referral Statistics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -291,11 +291,14 @@ export default function ReferralsPage() {
               <div className="space-y-4">
                 <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
                   <p className="text-2xl font-bold">₦{(stats?.totalEarnings || 0).toLocaleString()}</p>
+                  <p className="text-lg font-semibold text-blue-600 mt-1">
+                    {(stats?.totalEarningsUsdt || 0).toLocaleString()} USDT
+                  </p>
                   <p className="text-sm text-gray-500">Total earned</p>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Pending</span>
-                  <span className="font-medium">₦{(stats?.pendingBonus || 0).toLocaleString()}</span>
+                  <span className="font-medium">₦{(stats?.pendingBonus || 0).toLocaleString()} / {(stats?.pendingBonusUsdt || 0).toLocaleString()} USDT</span>
                 </div>
               </div>
             </CardContent>
@@ -341,38 +344,6 @@ export default function ReferralsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <Card className="overflow-hidden border-2 hover:border-orange-500 transition-colors">
-            <CardHeader className="border-b bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10">
-              <div className="flex items-center space-x-4">
-                <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2 text-white">
-                  <GiftIcon className="h-6 w-6" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Total Bonus</CardTitle>
-                  <p className="text-sm text-gray-500">Earned bonuses</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                  <p className="text-2xl font-bold">₦{(stats?.totalBonus || 0).toLocaleString()}</p>
-                  <p className="text-sm text-gray-500">Total bonus</p>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Pending</span>
-                  <span className="font-medium">₦{(stats?.pendingBonus || 0).toLocaleString()}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-        >
           <Card className="overflow-hidden border-2 hover:border-indigo-500 transition-colors">
             <CardHeader className="border-b bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10">
               <div className="flex items-center space-x-4">
@@ -391,11 +362,14 @@ export default function ReferralsPage() {
                   <p className="text-2xl font-bold">
                     ₦{stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)).toLocaleString() : 0}
                   </p>
+                  <p className="text-lg font-semibold text-blue-600 mt-1">
+                    {stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarningsUsdt || 0) / stats.totalReferrals).toLocaleString() : 0} USDT
+                  </p>
                   <p className="text-sm text-gray-500">Average</p>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Per referral</span>
-                  <span className="font-medium">~₦{(stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)) : 0).toLocaleString()}</span>
+                  <span className="font-medium">~₦{(stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarnings / stats.totalReferrals)) : 0).toLocaleString()} / ~{(stats?.totalReferrals && stats.totalReferrals > 0 ? Math.round((stats.totalEarningsUsdt || 0) / stats.totalReferrals) : 0).toLocaleString()} USDT</span>
                 </div>
               </div>
             </CardContent>

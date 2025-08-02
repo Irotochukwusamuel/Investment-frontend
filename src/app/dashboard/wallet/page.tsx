@@ -130,6 +130,13 @@ export default function WalletPage() {
   const isLoading = walletLoading || transactionsLoading || settingsLoading || platformSettingsLoading || usdtSettingsLoading
   const transactions = transactionData?.transactions || []
 
+  // Calculate pending withdrawal amounts from transaction history
+  const calculatePendingWithdrawals = (currency: string) => {
+    return transactions
+      .filter(t => t.type === 'withdrawal' && t.status === 'pending' && t.currency === currency.toLowerCase())
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  };
+
   // Get withdrawal limits and fees from settings with proper null checks
   const minWithdrawal = withdrawalSettings?.minWithdrawalAmount ?? 100
   const maxWithdrawal = withdrawalSettings?.maxWithdrawalAmount ?? 1000000
@@ -147,14 +154,14 @@ export default function WalletPage() {
       currency: 'NGN',
       amount: walletBalance?.totalBalance?.naira || 0,
       available: walletBalance?.walletBalances?.naira || 0, // Available balance (excludes locked bonuses)
-      pending: 0, // Backend doesn't provide pending amounts yet
+      pending: calculatePendingWithdrawals('naira'), // Pending withdrawal amounts
       locked: walletBalance?.lockedBalances?.naira || 0, // Locked bonuses
     },
     {
       currency: 'USDT',
       amount: walletBalance?.totalBalance?.usdt || 0,
       available: walletBalance?.walletBalances?.usdt || 0, // Available balance (excludes locked bonuses)
-      pending: 0,
+      pending: calculatePendingWithdrawals('usdt'), // Pending withdrawal amounts
       locked: walletBalance?.lockedBalances?.usdt || 0, // Locked bonuses
     },
   ]
@@ -477,16 +484,21 @@ export default function WalletPage() {
                       <div className="mt-3 space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500 font-medium">Available</span>
-                          <span className="font-semibold">{formatAmount(getAvailableBalance(balance.currency), balance.currency)}</span>
+                          <span className="font-semibold text-green-600">{formatAmount(getAvailableBalance(balance.currency), balance.currency)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500 font-medium">Pending</span>
-                          <span className="font-semibold">{formatAmount(balance.pending, balance.currency)}</span>
+                          <span className="font-semibold text-yellow-600">{formatAmount(balance.pending, balance.currency)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500 font-medium">Locked</span>
-                          <span className="font-semibold">{formatAmount(balance.locked, balance.currency)}</span>
+                          <span className="font-semibold text-blue-600">{formatAmount(balance.locked, balance.currency)}</span>
                         </div>
+                      </div>
+                      <div className="mt-3 text-xs text-gray-500 space-y-1">
+                        <p><span className="font-medium text-green-600">Available:</span> Amount eligible for withdrawal</p>
+                        <p><span className="font-medium text-yellow-600">Pending:</span> Withdrawal requests in processing</p>
+                        <p><span className="font-medium text-blue-600">Locked:</span> Bonuses locked for time duration</p>
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row justify-center items-center gap-2 w-full">

@@ -160,7 +160,7 @@ export default function DashboardPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border-2">
               <WalletIcon className="h-5 w-5 text-[#ff5858]" />
-              <span className="font-medium">Total Balance: {formatCurrency(totalBalance, 'naira')}</span>
+              <span className="font-medium">Total Balance: {formatCurrency(totalBalance, 'naira')} / {formatCurrency(totalBalanceUSDT, 'usdt')}</span>
             </Badge>
           </motion.div>
           <motion.div
@@ -170,7 +170,7 @@ export default function DashboardPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border-2">
               <ChartBarIcon className="h-5 w-5 text-[#ff7e5f]" />
-              <span className="font-medium">Total ROI: {formatCurrency(totalROI, 'usdt')}</span>
+              <span className="font-medium">Total ROI: {formatCurrency(totalROI, 'naira')} / {formatCurrency(totalROI, 'usdt')}</span>
             </Badge>
           </motion.div>
         </div>
@@ -214,8 +214,11 @@ export default function DashboardPage() {
                 <CardContent className="p-4">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(totalBalance, 'naira')}</p>
-                      <p className="text-sm text-gray-500">Available for investment</p>
+                      <div className="space-y-2">
+                        <p className="text-2xl font-bold">{formatCurrency(totalBalance, 'naira')}</p>
+                        <p className="text-lg font-semibold text-blue-600">{formatCurrency(totalBalanceUSDT, 'usdt')}</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Available for investment</p>
                     </div>
                   </div>
                 </CardContent>
@@ -236,8 +239,11 @@ export default function DashboardPage() {
                 <CardContent className="p-4">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(totalROI, 'usdt')}</p>
-                      <p className="text-sm text-gray-500">Total earnings</p>
+                      <div className="space-y-2">
+                        <p className="text-2xl font-bold">{formatCurrency(totalROI, 'naira')}</p>
+                        <p className="text-lg font-semibold text-green-600">{formatCurrency(totalROI, 'usdt')}</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Total earnings</p>
                     </div>
                   </div>
                 </CardContent>
@@ -356,8 +362,11 @@ export default function DashboardPage() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(totalBalance, 'naira')}</p>
-                      <p className="text-sm text-gray-500">Available for investment</p>
+                      <div className="space-y-2">
+                        <p className="text-2xl font-bold">{formatCurrency(totalBalance, 'naira')}</p>
+                        <p className="text-lg font-semibold text-blue-600">{formatCurrency(totalBalanceUSDT, 'usdt')}</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Available for investment</p>
                     </div>
                   </div>
                 </CardContent>
@@ -379,7 +388,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <CardTitle className="text-lg">Total ROI</CardTitle>
-                        <p className="text-sm text-gray-500">Your profits</p>
+                        <p className="text-sm text-gray-500">Your returns</p>
                       </div>
                     </div>
                   </div>
@@ -387,8 +396,11 @@ export default function DashboardPage() {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4">
-                      <p className="text-2xl font-bold">{formatCurrency(totalROI, 'usdt')}</p>
-                      <p className="text-sm text-gray-500">Total earnings</p>
+                      <div className="space-y-2">
+                        <p className="text-2xl font-bold">{formatCurrency(totalROI, 'naira')}</p>
+                        <p className="text-lg font-semibold text-green-600">{formatCurrency(totalROI, 'usdt')}</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Total earnings</p>
                     </div>
                   </div>
                 </CardContent>

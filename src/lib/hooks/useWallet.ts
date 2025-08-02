@@ -349,15 +349,23 @@ export const useBonusWithdrawalPeriod = () => {
       const response = await api.get(endpoints.settings.bonusWithdrawalPeriod);
       const data = response.data;
       
+      console.log('🔄 useBonusWithdrawalPeriod - Raw response:', data);
+      
       // Return both value and unit, with defaults
-      return {
+      const result = {
         value: data.bonusWithdrawalPeriod || 15,
         unit: data.bonusWithdrawalUnit || 'days',
         periodMs: data.bonusWithdrawalPeriodMs || (15 * 24 * 60 * 60 * 1000), // 15 days in ms
         displayText: `${data.bonusWithdrawalPeriod || 15} ${data.bonusWithdrawalUnit || 'days'}`
       };
+      
+      console.log('🔄 useBonusWithdrawalPeriod - Processed result:', result);
+      return result;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000,
+    staleTime: 0, // Always fetch latest
+    gcTime: 1 * 60 * 1000, // 1 minute cache
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }; 

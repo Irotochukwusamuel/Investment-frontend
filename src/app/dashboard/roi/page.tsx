@@ -53,6 +53,7 @@ import { useWithdrawBonus } from '@/lib/hooks/useBonus'
 import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
 import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
+import { api, endpoints } from '@/lib/api'
 
 interface RoiTransaction {
   id: number
@@ -116,6 +117,15 @@ export default function RoiPage() {
   const bonusWithdrawalUnit = bonusPeriodData?.unit || 'days';
   const bonusPeriodMs = bonusPeriodData?.periodMs || (15 * 24 * 60 * 60 * 1000);
 
+  // Debug logging
+  console.log('🔄 ROI Page - Bonus period data:', {
+    bonusPeriodData,
+    bonusWithdrawalPeriod,
+    bonusWithdrawalUnit,
+    bonusPeriodMs,
+    activeInvestmentDate
+  });
+
   // Update active investment date when investments are loaded
   useEffect(() => {
     if (investments && investments.length > 0) {
@@ -132,6 +142,62 @@ export default function RoiPage() {
   const dailyRoi = investments?.reduce((sum, inv) => sum + (inv.dailyEarnings || 0), 0) || 0
   const totalInvested = investmentStats?.totalAmount || 0
   const activeInvestments = investmentStats?.activeInvestments || 0
+
+  // Calculate separate ROI values for Naira and USDT
+  const totalRoiNaira = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'naira') {
+      return sum + (inv.earnedAmount || 0);
+    }
+    return sum;
+  }, 0) || 0;
+
+  const totalRoiUsdt = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'usdt') {
+      return sum + (inv.earnedAmount || 0);
+    }
+    return sum;
+  }, 0) || 0;
+
+  // Calculate hourly ROI by currency (daily ROI / 24 hours)
+  const hourlyRoiNaira = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'naira' && inv.status === 'active') {
+      const dailyRoiAmount = (inv.amount * inv.dailyRoi) / 100;
+      const hourlyRoiAmount = dailyRoiAmount / 24;
+      return sum + hourlyRoiAmount;
+    }
+    return sum;
+  }, 0) || 0;
+
+  const hourlyRoiUsdt = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'usdt' && inv.status === 'active') {
+      const dailyRoiAmount = (inv.amount * inv.dailyRoi) / 100;
+      const hourlyRoiAmount = dailyRoiAmount / 24;
+      return sum + hourlyRoiAmount;
+    }
+    return sum;
+  }, 0) || 0;
+
+  // Calculate daily ROI by currency (accumulated hourly ROI)
+  const dailyRoiNaira = hourlyRoiNaira * 24; // Convert hourly to daily
+  const dailyRoiUsdt = hourlyRoiUsdt * 24; // Convert hourly to daily
+
+  // Calculate total invested by currency
+  const totalInvestedNaira = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'naira') {
+      return sum + (inv.amount || 0);
+    }
+    return sum;
+  }, 0) || 0;
+
+  const totalInvestedUsdt = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'usdt') {
+      return sum + (inv.amount || 0);
+    }
+    return sum;
+  }, 0) || 0;
+
+  // Calculate percentage growth based on total invested vs total earned
+  const percentageGrowth = totalInvested > 0 ? ((totalRoi - totalInvested) / totalInvested) * 100 : 0;
 
   // Active plans breakdown
   const planBreakdown = investments?.reduce((acc, inv) => {
@@ -228,6 +294,23 @@ export default function RoiPage() {
     }
   };
 
+  const handleWithdrawDailyRoi = async () => {
+    try {
+      const response = await api.post(endpoints.investments.withdrawDailyRoi);
+      const result = response.data;
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Refresh the page to update the data
+        window.location.reload();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to withdraw daily ROI');
+    }
+  };
+
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber)
   }
@@ -282,7 +365,7 @@ export default function RoiPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border-2">
               <ChartBarIcon className="h-5 w-5 text-blue-600" />
-              <span className="font-medium">Total ROI: {formatCurrency(totalRoi, 'naira')}</span>
+              <span className="font-medium">Total ROI: {formatCurrency(totalRoi, 'naira')} ({formatCurrency(totalRoiUsdt, 'usdt')})</span>
             </Badge>
           </motion.div>
           <motion.div
@@ -292,7 +375,7 @@ export default function RoiPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border-2">
               <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
-              <span className="font-medium">Growth: +{monthlyGrowth.toFixed(2)}%</span>
+              <span className="font-medium">Growth: +{percentageGrowth.toFixed(2)}%</span>
             </Badge>
           </motion.div>
         </div>
@@ -341,13 +424,16 @@ export default function RoiPage() {
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4 shadow-inner">
                       <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                        {formatCurrency(totalRoi, 'naira')}
+                        {formatCurrency(totalRoiNaira, 'naira')}
+                      </p>
+                      <p className="text-lg font-semibold text-blue-600 mt-1">
+                        {formatCurrency(totalRoiUsdt, 'usdt')}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">Total earnings</p>
                     </div>
                     <div className="flex justify-between text-sm sm:text-base">
                       <span className="text-gray-500">Monthly Growth</span>
-                      <span className="text-green-600 font-medium">+{monthlyGrowth.toFixed(2)}%</span>
+                      <span className="text-green-600 font-medium">+{percentageGrowth.toFixed(2)}%</span>
                     </div>
                   </div>
                 </CardContent>
@@ -378,14 +464,30 @@ export default function RoiPage() {
                   <div className="space-y-4">
                     <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4 shadow-inner">
                       <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] bg-clip-text text-transparent">
-                        {formatCurrency(dailyRoi, 'naira')}
+                        {formatCurrency(dailyRoiNaira, 'naira')}
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">Daily earnings</p>
+                      <p className="text-lg font-semibold text-blue-600 mt-1">
+                        {formatCurrency(dailyRoiUsdt, 'usdt')}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">Daily earnings (24h accumulation)</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Hourly: {formatCurrency(hourlyRoiNaira, 'naira')} / {formatCurrency(hourlyRoiUsdt, 'usdt')}
+                      </p>
                     </div>
                     <div className="flex justify-between text-sm sm:text-base">
                       <span className="text-gray-500">Daily Growth</span>
                       <span className="text-green-600 font-medium">+{dailyGrowth.toFixed(2)}%</span>
                     </div>
+                    <Button
+                      onClick={handleWithdrawDailyRoi}
+                      disabled={dailyRoiNaira <= 0 && dailyRoiUsdt <= 0}
+                      className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Withdraw Daily ROI
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      Withdraws accumulated daily ROI to available balance
+                    </p>
                   </div>
                 </CardContent>
               </Card>

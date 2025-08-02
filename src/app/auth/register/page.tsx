@@ -54,18 +54,29 @@ export default function RegisterPage() {
       toast.error('Please agree to the terms and conditions')
       return
     }
+
+    // Phone number validation
+    if (!formData.phoneNumber || formData.phoneNumber.trim() === "") {
+      toast.error('Phone number is required')
+      return
+    }
+
+    // Basic phone number format validation
+    const phoneRegex = /^\+?[\d\s\-\(\)]+$/
+    if (!phoneRegex.test(formData.phoneNumber.trim())) {
+      toast.error('Please enter a valid phone number')
+      return
+    }
     
     try {
-      // Build payload and omit phoneNumber if empty
+      // Build payload with required phone number
       const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
+        phoneNumber: formData.phoneNumber.trim(),
       };
-      if (formData.phoneNumber && formData.phoneNumber.trim() !== "") {
-        payload.phoneNumber = formData.phoneNumber;
-      }
       if (formData.referralCode && formData.referralCode.trim() !== "") {
         payload.referralCode = formData.referralCode;
       }
@@ -177,7 +188,7 @@ export default function RegisterPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700">Phone Number <span className="text-gray-400">(optional)</span></Label>
+                <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700">Phone Number</Label>
                 <Input
                   id="phoneNumber"
                   type="tel"
@@ -185,6 +196,7 @@ export default function RegisterPage() {
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   className="mt-1 h-11 bg-white border border-gray-200 focus:border-orange-400 focus:ring-orange-200"
+                  required
                 />
               </div>
               <div>

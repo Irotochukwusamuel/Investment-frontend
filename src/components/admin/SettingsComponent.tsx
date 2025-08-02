@@ -252,6 +252,9 @@ export default function SettingsComponent() {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
       queryClient.invalidateQueries({ queryKey: ['settings', 'bonusWithdrawalPeriod'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['investments'] });
+      queryClient.invalidateQueries({ queryKey: ['investment-stats'] });
       
       // Update original settings to reflect the saved state
       setOriginalSettings(JSON.parse(JSON.stringify(response.data)));
