@@ -351,12 +351,31 @@ export const useBonusWithdrawalPeriod = () => {
       
       console.log('🔄 useBonusWithdrawalPeriod - Raw response:', data);
       
-      // Return both value and unit, with defaults
+      // Get the values from the response
+      const value = data.bonusWithdrawalPeriod || 15;
+      const unit = data.bonusWithdrawalUnit || 'days';
+      
+      // Calculate periodMs based on the unit
+      let periodMs: number;
+      switch (unit) {
+        case 'minutes':
+          periodMs = value * 60 * 1000;
+          break;
+        case 'hours':
+          periodMs = value * 60 * 60 * 1000;
+          break;
+        case 'days':
+        default:
+          periodMs = value * 24 * 60 * 60 * 1000;
+          break;
+      }
+      
+      // Return both value and unit, with proper defaults
       const result = {
-        value: data.bonusWithdrawalPeriod || 15,
-        unit: data.bonusWithdrawalUnit || 'days',
-        periodMs: data.bonusWithdrawalPeriodMs || (15 * 24 * 60 * 60 * 1000), // 15 days in ms
-        displayText: `${data.bonusWithdrawalPeriod || 15} ${data.bonusWithdrawalUnit || 'days'}`
+        value,
+        unit,
+        periodMs: data.bonusWithdrawalPeriodMs || periodMs,
+        displayText: `${value} ${unit}`
       };
       
       console.log('🔄 useBonusWithdrawalPeriod - Processed result:', result);
