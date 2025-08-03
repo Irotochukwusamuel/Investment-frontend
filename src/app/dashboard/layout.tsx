@@ -82,7 +82,6 @@ export default function DashboardLayout({
     handleStayLoggedIn, 
     handleLogout: handleSessionLogout 
   } = useSessionTimeout();
-
   // Use real notifications from the API
   const { data: notificationsData } = useNotifications({ limit: 10 });
   const { data: unreadCountData } = useUnreadNotificationsCount();
@@ -212,7 +211,10 @@ export default function DashboardLayout({
               </div>
               <nav className="flex-1 space-y-1 px-2 py-4">
                 {navigation.map((item) => {
-                  const isActive = pathname === item.href || (item.name === 'Settings' && pathname.startsWith('/dashboard/settings'))
+                  const isActive = pathname === item.href || 
+                    pathname === item.href + '/' || 
+                    (item.name === 'Settings' && pathname.startsWith('/dashboard/settings')) ||
+                    (item.name === 'Dashboard' && pathname === '/dashboard')
                   return (
                     <Link
                       key={item.name}
@@ -247,15 +249,15 @@ export default function DashboardLayout({
                     href="/dashboard/admin"
                     className={cn(
                       "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
-                      pathname === '/dashboard/admin'
+                      pathname === '/dashboard/admin' || pathname === '/dashboard/admin/'
                         ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
                         : "text-gray-300 hover:bg-gray-800 hover:text-white"
                     )}
                     onClick={() => setMobileOpen(false)}
                   >
-                    <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' ? "text-white" : "text-gray-400 group-hover:text-white")} />
+                    <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' || pathname === '/dashboard/admin/' ? "text-white" : "text-gray-400 group-hover:text-white")} />
                     Admin
-                    {pathname === '/dashboard/admin' && (
+                    {(pathname === '/dashboard/admin' || pathname === '/dashboard/admin/') && (
                       <motion.div layoutId="activeNav" className="absolute left-0 w-1 h-8 bg-white rounded-r-full" />
                     )}
                   </Link>
@@ -286,7 +288,11 @@ export default function DashboardLayout({
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || (item.name === 'Settings' && pathname.startsWith('/dashboard/settings'))
+                  const isActive = pathname === item.href || 
+                    pathname === item.href + '/' || 
+                    (item.name === 'Settings' && pathname.startsWith('/dashboard/settings')) ||
+                    (item.name === 'Dashboard' && pathname === '/dashboard')
+
               return (
                 <Link
                   key={item.name}
@@ -320,14 +326,14 @@ export default function DashboardLayout({
                 href="/dashboard/admin"
                 className={cn(
                   "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
-                  pathname === '/dashboard/admin'
+                  pathname === '/dashboard/admin' || pathname === '/dashboard/admin/'
                     ? "bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] text-white shadow-lg"
                     : "text-gray-300 hover:bg-gray-800 hover:text-white"
                 )}
               >
-                <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' ? "text-white" : "text-gray-400 group-hover:text-white")} />
+                <Cog6ToothIcon className={cn("mr-3 h-5 w-5 flex-shrink-0 transition-colors", pathname === '/dashboard/admin' || pathname === '/dashboard/admin/' ? "text-white" : "text-gray-400 group-hover:text-white")} />
                 Admin
-                {pathname === '/dashboard/admin' && (
+                {(pathname === '/dashboard/admin' || pathname === '/dashboard/admin/') && (
                   <motion.div layoutId="activeNav" className="absolute left-0 w-1 h-8 bg-white rounded-r-full" />
                 )}
               </Link>
