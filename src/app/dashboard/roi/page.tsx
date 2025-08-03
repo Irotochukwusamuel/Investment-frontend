@@ -50,7 +50,7 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMyInvestments, useInvestmentStats, type Investment } from '@/lib/hooks/useInvestments'
 import { useWithdrawBonus } from '@/lib/hooks/useBonus'
-import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
+import { useBonusWithdrawalPeriod, useBonusCountdown } from '@/lib/hooks/useWallet'
 import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
 import { api, endpoints } from '@/lib/api'
@@ -100,6 +100,7 @@ export default function RoiPage() {
   const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
   const { data: bonusPeriodData, isLoading: bonusPeriodLoading } = useBonusWithdrawalPeriod()
+  const { data: bonusCountdown, isLoading: countdownLoading } = useBonusCountdown()
   const withdrawBonusMutation = useWithdrawBonus()
   const { data: referralStats, isLoading: referralLoading } = useReferralStats()
   const [showAllTransactions, setShowAllTransactions] = useState(false)
@@ -108,96 +109,29 @@ export default function RoiPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [lastBonusWithdrawal, setLastBonusWithdrawal] = useState<Date | null>(null)
-  const [activeInvestmentDate, setActiveInvestmentDate] = useState<Date>(new Date())
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Extract bonus period data with defaults
   const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
   const bonusWithdrawalUnit = bonusPeriodData?.unit || 'days';
   const bonusPeriodMs = bonusPeriodData?.periodMs || (15 * 24 * 60 * 60 * 1000);
 
+  // Use backend countdown data
+  const eligible = bonusCountdown?.canWithdraw || false;
+  const timeLeftDisplay = bonusCountdown?.formattedTimeLeft || '0';
+  const progress = bonusCountdown?.progress || 0;
+  const timeLeftMs = bonusCountdown?.timeLeftMs || 0;
+
   // Debug logging
-  console.log('🔄 ROI Page - Bonus period data:', {
-    bonusPeriodData,
-    bonusWithdrawalPeriod,
-    bonusWithdrawalUnit,
-    bonusPeriodMs,
-    activeInvestmentDate
+  console.log('🔄 ROI Page - Backend countdown data:', {
+    bonusCountdown,
+    eligible,
+    timeLeftDisplay,
+    progress,
+    timeLeftMs
   });
 
-  // Update active investment date when investments are loaded
-  useEffect(() => {
-    if (investments && investments.length > 0) {
-      // Use the earliest investment start date as active date
-      const earliestDate = new Date(Math.min(...investments.map(inv => new Date(inv.startDate).getTime())))
-      setActiveInvestmentDate(earliestDate)
-    }
-  }, [investments])
-
-  // Calculate eligibility
-  const now = currentTime; // Use currentTime for real-time updates
-  let eligible = false;
-  let timeLeft = 0; // Initialize timeLeft to 0
-  let timeLeftDisplay = '0';
-  
-  // Check if user has completed their first period
-  const timeSinceFirstInvestment = now.getTime() - activeInvestmentDate.getTime();
-  
-  if (timeSinceFirstInvestment < bonusPeriodMs) {
-    // Still in initial period
-    timeLeft = bonusPeriodMs - timeSinceFirstInvestment;
-    eligible = false;
-    
-    // Calculate time left in a user-friendly format
-    const formatTimeLeft = (milliseconds: number) => {
-      const totalMinutes = Math.ceil(milliseconds / (60 * 1000));
-      const totalHours = Math.ceil(milliseconds / (60 * 60 * 1000));
-      const totalDays = Math.ceil(milliseconds / (24 * 60 * 60 * 1000));
-      
-      // If less than 1 hour, show minutes
-      if (totalMinutes < 60) {
-        return `${totalMinutes}m`;
-      }
-      // If less than 24 hours, show hours and minutes
-      else if (totalHours < 24) {
-        const hours = Math.floor(milliseconds / (60 * 60 * 1000));
-        const minutes = Math.floor((milliseconds % (60 * 60 * 1000)) / (60 * 1000));
-        return `${hours}h ${minutes}m`;
-      }
-      // If more than 24 hours, show days and hours
-      else {
-        const days = Math.floor(milliseconds / (24 * 60 * 60 * 1000));
-        const hours = Math.floor((milliseconds % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-        if (hours > 0) {
-          return `${days}d ${hours}h`;
-        } else {
-          return `${days}d`;
-        }
-      }
-    };
-    
-    timeLeftDisplay = formatTimeLeft(timeLeft);
-  } else {
-    // Initial period completed - can withdraw anytime
-    timeLeft = 0;
-    eligible = true;
-    timeLeftDisplay = '0';
-  }
-
-  // Real-time countdown update
-  useEffect(() => {
-    if (!eligible) {
-      const interval = setInterval(() => {
-        setCurrentTime(new Date());
-      }, 1000); // Update every second
-      
-      return () => clearInterval(interval);
-    }
-  }, [eligible]);
-
-  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || referralLoading
+  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || countdownLoading || referralLoading
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -317,7 +251,6 @@ export default function RoiPage() {
       const result = await withdrawBonusMutation.mutateAsync();
       if (result.success) {
         toast.success(result.message);
-        setLastBonusWithdrawal(new Date());
         setBonusWithdrawn(true);
       } else {
         toast.error(result.message);
@@ -609,18 +542,18 @@ export default function RoiPage() {
                         <span className="text-gray-400 text-xs flex items-center gap-1"><LockClosedIcon className="h-4 w-4" />Locked</span>
                       )}
                       <div className="flex-1">
-                        <Progress value={100 * (1 - (timeLeft / bonusPeriodMs))} className="h-2 bg-gray-200" />
+                        <Progress value={progress} className="h-2 bg-gray-200" />
                       </div>
-                      <span className="text-xs text-gray-500 w-20 text-right font-mono">{eligible ? 'Now' : timeLeftDisplay}</span>
+                      <span className="text-xs text-gray-500 w-20 text-right font-mono">{timeLeftDisplay}</span>
                     </div>
                     <div className="w-full text-center">
                       {!eligible && (
                         <p className="text-xs text-gray-400 mt-1">
-                          {Math.floor(timeLeft / (24 * 60 * 60 * 1000)) > 0 
-                            ? `${Math.floor(timeLeft / (24 * 60 * 60 * 1000))} days, ${Math.floor((timeLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))} hours remaining`
-                            : Math.floor(timeLeft / (60 * 60 * 1000)) > 0
-                            ? `${Math.floor(timeLeft / (60 * 60 * 1000))} hours, ${Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000))} minutes remaining`
-                            : `${Math.floor(timeLeft / (60 * 1000))} minutes remaining`
+                          {timeLeftMs > 0 
+                            ? `${Math.floor(timeLeftMs / (24 * 60 * 60 * 1000))} days, ${Math.floor((timeLeftMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))} hours remaining`
+                            : Math.floor(timeLeftMs / (60 * 60 * 1000)) > 0
+                            ? `${Math.floor(timeLeftMs / (60 * 60 * 1000))} hours, ${Math.floor((timeLeftMs % (60 * 60 * 1000)) / (60 * 1000))} minutes remaining`
+                            : `${Math.floor(timeLeftMs / (60 * 1000))} minutes remaining`
                           }
                         </p>
                       )}

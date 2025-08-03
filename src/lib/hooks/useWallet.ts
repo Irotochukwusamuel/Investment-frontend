@@ -317,10 +317,10 @@ export const useWithdrawalSettings = () => {
       console.log('🔄 useWithdrawalSettings - Processed result:', result);
       return result;
     },
-    staleTime: 0, // Always fetch latest
-    gcTime: 0, // Don't cache at all
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
 }; 
@@ -381,10 +381,35 @@ export const useBonusWithdrawalPeriod = () => {
       console.log('🔄 useBonusWithdrawalPeriod - Processed result:', result);
       return result;
     },
-    staleTime: 0, // Always fetch latest
-    gcTime: 1 * 60 * 1000, // 1 minute cache
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
+}; 
+
+// Bonus countdown hook - fetches real-time countdown from backend
+export const useBonusCountdown = () => {
+  return useQuery({
+    queryKey: ['users', 'bonus-countdown'],
+    queryFn: async () => {
+      const response = await api.get(endpoints.users.bonusCountdown);
+      return handleApiResponse<{
+        canWithdraw: boolean;
+        timeLeft: string;
+        daysLeft: number;
+        nextWithdrawalDate?: string;
+        progress: number;
+        timeLeftMs: number;
+        formattedTimeLeft: string;
+      }>(response);
+    },
+    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchIntervalInBackground: false,
+    staleTime: 5000, // Consider data fresh for 5 seconds
+    gcTime: 30 * 1000, // Cache for 30 seconds
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
 }; 

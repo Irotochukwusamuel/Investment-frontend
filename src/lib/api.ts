@@ -72,6 +72,7 @@ export const endpoints = {
     verifyEmail: (id: string) => `/users/${id}/verify-email`,
     resetPassword: (id: string) => `/users/${id}/reset-password`,
     changePassword: '/users/change-password',
+    bonusCountdown: '/users/bonus-countdown',
   },
   
   // Investment Plans
