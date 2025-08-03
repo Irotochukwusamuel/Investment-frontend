@@ -201,7 +201,7 @@ export default function RoiPage() {
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
-  const dailyRoi = investments?.reduce((sum, inv) => sum + (inv.dailyEarnings || 0), 0) || 0
+  const dailyRoi = investments?.reduce((sum, inv) => sum + (inv.earnedAmount || 0), 0) || 0
   const totalInvested = investmentStats?.totalAmount || 0
   const activeInvestments = investmentStats?.activeInvestments || 0
 

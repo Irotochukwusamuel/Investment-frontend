@@ -49,7 +49,6 @@ export interface Investment {
   totalEarnings: number;
   totalPayouts: number;
   pendingPayouts: number;
-  dailyEarnings: number;
   projectedEarnings: number;
   progress: number;
   autoReinvest: boolean;
