@@ -600,16 +600,30 @@ export default function RoiPage() {
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
                   <div className="space-y-4">
-                    <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4 shadow-inner">
-                      <div className="space-y-2">
-                        {Object.entries(planBreakdown).map(([plan, amount]) => (
-                          <div key={plan} className="flex justify-between text-sm sm:text-base">
-                            <span className="text-gray-500">{plan}</span>
-                            <span className="font-medium">{formatCurrency(amount, 'naira')}</span>
-                          </div>
-                        ))}
+                    {Object.keys(planBreakdown).length > 0 ? (
+                      <div className="rounded-lg bg-gradient-to-r from-[#ff5858]/10 via-[#ff7e5f]/10 to-[#ff9966]/10 p-4 shadow-inner">
+                        <div className="space-y-2">
+                          {Object.entries(planBreakdown).map(([plan, amount]) => (
+                            <div key={plan} className="flex justify-between text-sm sm:text-base">
+                              <span className="text-gray-500">{plan}</span>
+                              <span className="font-medium">{formatCurrency(amount, 'naira')}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <BanknotesIcon className="h-12 w-12 text-gray-400 mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Plans</h3>
+                        <p className="text-gray-500 mb-4">You don't have any active investment plans yet. Start investing to see your plans here.</p>
+                        <Button 
+                          onClick={() => window.location.href = '/dashboard/investments'}
+                          className="bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
+                        >
+                          Start Investing
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
