@@ -266,11 +266,21 @@ export default function RoiPage() {
     
     // Calculate time left in the appropriate unit
     if (bonusWithdrawalUnit === 'minutes') {
-      timeLeftDisplay = `${Math.ceil(timeLeft / (60 * 1000))}m`;
+      const minutesLeft = Math.max(0, Math.ceil(timeLeft / (60 * 1000)));
+      timeLeftDisplay = `${minutesLeft}m`;
     } else if (bonusWithdrawalUnit === 'hours') {
-      timeLeftDisplay = `${Math.ceil(timeLeft / (60 * 60 * 1000))}h`;
+      const hoursLeft = Math.max(0, Math.ceil(timeLeft / (60 * 60 * 1000)));
+      timeLeftDisplay = `${hoursLeft}h`;
     } else {
-      timeLeftDisplay = `${Math.ceil(timeLeft / (24 * 60 * 60 * 1000))}d`;
+      // For days, show more detailed format
+      const daysLeft = Math.max(0, Math.ceil(timeLeft / (24 * 60 * 60 * 1000)));
+      if (daysLeft > 0) {
+        timeLeftDisplay = `${daysLeft}d`;
+      } else {
+        // If less than a day, show hours
+        const hoursLeft = Math.max(0, Math.ceil(timeLeft / (60 * 60 * 1000)));
+        timeLeftDisplay = `${hoursLeft}h`;
+      }
     }
   } else {
     // Initial period completed - can withdraw anytime

@@ -348,6 +348,21 @@ export const useUpdateProfile = () => {
   });
 };
 
+export const useChangePassword = () => {
+  return useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const response = await api.post(endpoints.users.changePassword, data);
+      return handleApiResponse(response);
+    },
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to change password');
+    },
+  });
+};
+
 // Main auth hook that combines all functionality
 export const useAuth = () => {
   const { data: user, isLoading, error } = useUser();

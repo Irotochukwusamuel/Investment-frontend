@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { RefreshCwIcon, HomeIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, HomeIcon } from '@heroicons/react/24/outline'
 
 interface Props {
   children: React.ReactNode
@@ -55,7 +55,7 @@ export class MobileErrorBoundary extends React.Component<Props, State> {
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                <RefreshCwIcon className="h-6 w-6 text-red-600" />
+                <ArrowPathIcon className="h-6 w-6 text-red-600" />
               </div>
               <CardTitle className="text-lg">Something went wrong</CardTitle>
             </CardHeader>
@@ -70,7 +70,7 @@ export class MobileErrorBoundary extends React.Component<Props, State> {
                   className="w-full"
                   variant="default"
                 >
-                  <RefreshCwIcon className="h-4 w-4 mr-2" />
+                  <ArrowPathIcon className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
                 

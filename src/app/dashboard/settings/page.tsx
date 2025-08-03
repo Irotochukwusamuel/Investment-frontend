@@ -43,6 +43,7 @@ import {
   BankDetails as BankDetailsType,
   AccountVerification
 } from '@/lib/hooks/useBank'
+import { useChangePassword } from '@/lib/hooks/useAuth'
 
 interface NotificationSetting {
   id: string
@@ -152,6 +153,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 export default function SettingsPage() {
   const { data: user, isLoading: userLoading } = useUser()
   const updateProfile = useUpdateProfile()
+  const changePassword = useChangePassword()
   
   // Bank-related hooks
   const { data: banks, isLoading: banksLoading } = useBankList()
@@ -168,6 +170,13 @@ export default function SettingsPage() {
   const [showBankDialog, setShowBankDialog] = useState(false)
   const [showCryptoDialog, setShowCryptoDialog] = useState(false)
   const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false)
+  
+  // Change password form state
+  const [changePasswordForm, setChangePasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
   
   // Bank details form state
   const [bankForm, setBankForm] = useState({
@@ -268,6 +277,34 @@ export default function SettingsPage() {
       toast.success('Profile updated successfully')
     } catch (error) {
       toast.error('Failed to update profile')
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+
+    if (changePasswordForm.newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters long')
+      return
+    }
+
+    try {
+      await changePassword.mutateAsync({
+        currentPassword: changePasswordForm.currentPassword,
+        newPassword: changePasswordForm.newPassword,
+      })
+      
+      // Reset form
+      setChangePasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+    } catch (error) {
+      // Error is handled by the hook
     }
   }
 
@@ -553,16 +590,41 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="current-password">Current Password</Label>
-                      <Input id="current-password" type="password" placeholder="Enter current password" />
+                      <Input 
+                        id="current-password" 
+                        type="password" 
+                        placeholder="Enter current password" 
+                        value={changePasswordForm.currentPassword}
+                        onChange={(e) => setChangePasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
-                      <Input id="new-password" type="password" placeholder="Enter new password" />
+                      <Input 
+                        id="new-password" 
+                        type="password" 
+                        placeholder="Enter new password" 
+                        value={changePasswordForm.newPassword}
+                        onChange={(e) => setChangePasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password">Confirm New Password</Label>
-                      <Input id="confirm-password" type="password" placeholder="Confirm new password" />
+                      <Input 
+                        id="confirm-password" 
+                        type="password" 
+                        placeholder="Confirm new password" 
+                        value={changePasswordForm.confirmPassword}
+                        onChange={(e) => setChangePasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      />
                     </div>
+                    <Button 
+                      onClick={handleChangePassword}
+                      disabled={changePassword.isPending || !changePasswordForm.currentPassword || !changePasswordForm.newPassword || !changePasswordForm.confirmPassword}
+                      className="w-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
+                    >
+                      {changePassword.isPending ? 'Changing Password...' : 'Change Password'}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -811,16 +873,44 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="current-password">Current Password</Label>
-                    <Input id="current-password" type="password" placeholder="Enter current password" className="bg-white/50 backdrop-blur-sm" />
+                    <Input 
+                      id="current-password" 
+                      type="password" 
+                      placeholder="Enter current password" 
+                      className="bg-white/50 backdrop-blur-sm"
+                      value={changePasswordForm.currentPassword}
+                      onChange={(e) => setChangePasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="new-password">New Password</Label>
-                    <Input id="new-password" type="password" placeholder="Enter new password" className="bg-white/50 backdrop-blur-sm" />
+                    <Input 
+                      id="new-password" 
+                      type="password" 
+                      placeholder="Enter new password" 
+                      className="bg-white/50 backdrop-blur-sm"
+                      value={changePasswordForm.newPassword}
+                      onChange={(e) => setChangePasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input id="confirm-password" type="password" placeholder="Confirm new password" className="bg-white/50 backdrop-blur-sm" />
+                    <Input 
+                      id="confirm-password" 
+                      type="password" 
+                      placeholder="Confirm new password" 
+                      className="bg-white/50 backdrop-blur-sm"
+                      value={changePasswordForm.confirmPassword}
+                      onChange={(e) => setChangePasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    />
                   </div>
+                  <Button 
+                    onClick={handleChangePassword}
+                    disabled={changePassword.isPending || !changePasswordForm.currentPassword || !changePasswordForm.newPassword || !changePasswordForm.confirmPassword}
+                    className="w-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] hover:from-[#ff4848] hover:via-[#ff6e4f] hover:to-[#ff8956] text-white"
+                  >
+                    {changePassword.isPending ? 'Changing Password...' : 'Change Password'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

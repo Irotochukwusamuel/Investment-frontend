@@ -71,6 +71,7 @@ export const endpoints = {
     stats: '/users/stats',
     verifyEmail: (id: string) => `/users/${id}/verify-email`,
     resetPassword: (id: string) => `/users/${id}/reset-password`,
+    changePassword: '/users/change-password',
   },
   
   // Investment Plans

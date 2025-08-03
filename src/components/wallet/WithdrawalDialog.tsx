@@ -147,7 +147,7 @@ export function WithdrawalDialog({
       await createWithdrawal.mutateAsync({
         amount: parseFloat(amount),
         currency,
-        notes: `ROI withdrawal request for ${currency === 'naira' ? 'NGN' : 'USDT'}`
+        withdrawalMethod: currency === 'naira' ? 'bank_transfer' : 'crypto',
       });
 
       setStep('success');
