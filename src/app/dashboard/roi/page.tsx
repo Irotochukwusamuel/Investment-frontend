@@ -50,7 +50,7 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMyInvestments, useInvestmentStats, type Investment } from '@/lib/hooks/useInvestments'
 import { useWithdrawBonus } from '@/lib/hooks/useBonus'
-import { useBonusWithdrawalPeriod, useBonusCountdown } from '@/lib/hooks/useWallet'
+import { useBonusWithdrawalPeriod, useBonusCountdown, useWalletBalance } from '@/lib/hooks/useWallet'
 import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
 import { api, endpoints } from '@/lib/api'
@@ -103,6 +103,7 @@ export default function RoiPage() {
   const { data: bonusCountdown, isLoading: countdownLoading } = useBonusCountdown()
   const withdrawBonusMutation = useWithdrawBonus()
   const { data: referralStats, isLoading: referralLoading } = useReferralStats()
+  const { data: walletBalance, isLoading: walletLoading } = useWalletBalance()
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [transactionsPerPage] = useState(10)
@@ -122,16 +123,7 @@ export default function RoiPage() {
   const progress = bonusCountdown?.progress || 0;
   const timeLeftMs = bonusCountdown?.timeLeftMs || 0;
 
-  // Debug logging
-  console.log('🔄 ROI Page - Backend countdown data:', {
-    bonusCountdown,
-    eligible,
-    timeLeftDisplay,
-    progress,
-    timeLeftMs
-  });
-
-  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || countdownLoading || referralLoading
+  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || countdownLoading || referralLoading || walletLoading
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -202,22 +194,15 @@ export default function RoiPage() {
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // Calculate total bonus from ALL investments (not just active ones)
-  const totalBonus = (investments?.reduce((sum, inv) => {
-    return sum + (inv.welcomeBonus || 0);
-  }, 0) || 0) + (referralStats?.totalBonus || 0);
-
-  // Calculate total welcome and referral bonuses from ALL investments
-  const totalWelcomeBonus = investments?.reduce((sum, inv) => sum + (inv.welcomeBonus || 0), 0) || 0;
-  const totalReferralBonus = referralStats?.totalBonus || 0;
+  // Calculate bonus amounts from wallet balance data (more accurate)
+  const totalLockedBonus = walletBalance?.lockedBalances?.naira || 0;
+  const totalReferralBonus = walletBalance?.referralEarnings || 0;
+  
+  // Calculate welcome bonus as the difference between total locked bonus and referral bonus
+  const totalWelcomeBonus = Math.max(0, totalLockedBonus - totalReferralBonus);
 
   // Calculate available bonus (only from active investments for withdrawal)
-  const availableBonus = (investments?.reduce((sum, inv) => {
-    if (inv.status === 'active') {
-      return sum + (inv.welcomeBonus || 0);
-    }
-    return sum;
-  }, 0) || 0) + (referralStats?.totalBonus || 0);
+  const availableBonus = totalLockedBonus;
 
   // ROI transactions from payouts
   const roiTransactions = investments?.flatMap(investment => 
@@ -252,6 +237,8 @@ export default function RoiPage() {
       if (result.success) {
         toast.success(result.message);
         setBonusWithdrawn(true);
+        // Refresh the page to update the data
+        window.location.reload();
       } else {
         toast.error(result.message);
       }
