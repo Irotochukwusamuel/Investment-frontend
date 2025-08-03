@@ -111,6 +111,7 @@ export default function RoiPage() {
   const [lastBonusWithdrawal, setLastBonusWithdrawal] = useState<Date | null>(null)
   const [activeInvestmentDate, setActiveInvestmentDate] = useState<Date>(new Date())
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Extract bonus period data with defaults
   const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
@@ -134,6 +135,67 @@ export default function RoiPage() {
       setActiveInvestmentDate(earliestDate)
     }
   }, [investments])
+
+  // Calculate eligibility
+  const now = currentTime; // Use currentTime for real-time updates
+  let eligible = false;
+  let timeLeft = 0; // Initialize timeLeft to 0
+  let timeLeftDisplay = '0';
+  
+  // Check if user has completed their first period
+  const timeSinceFirstInvestment = now.getTime() - activeInvestmentDate.getTime();
+  
+  if (timeSinceFirstInvestment < bonusPeriodMs) {
+    // Still in initial period
+    timeLeft = bonusPeriodMs - timeSinceFirstInvestment;
+    eligible = false;
+    
+    // Calculate time left in a user-friendly format
+    const formatTimeLeft = (milliseconds: number) => {
+      const totalMinutes = Math.ceil(milliseconds / (60 * 1000));
+      const totalHours = Math.ceil(milliseconds / (60 * 60 * 1000));
+      const totalDays = Math.ceil(milliseconds / (24 * 60 * 60 * 1000));
+      
+      // If less than 1 hour, show minutes
+      if (totalMinutes < 60) {
+        return `${totalMinutes}m`;
+      }
+      // If less than 24 hours, show hours and minutes
+      else if (totalHours < 24) {
+        const hours = Math.floor(milliseconds / (60 * 60 * 1000));
+        const minutes = Math.floor((milliseconds % (60 * 60 * 1000)) / (60 * 1000));
+        return `${hours}h ${minutes}m`;
+      }
+      // If more than 24 hours, show days and hours
+      else {
+        const days = Math.floor(milliseconds / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((milliseconds % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        if (hours > 0) {
+          return `${days}d ${hours}h`;
+        } else {
+          return `${days}d`;
+        }
+      }
+    };
+    
+    timeLeftDisplay = formatTimeLeft(timeLeft);
+  } else {
+    // Initial period completed - can withdraw anytime
+    timeLeft = 0;
+    eligible = true;
+    timeLeftDisplay = '0';
+  }
+
+  // Real-time countdown update
+  useEffect(() => {
+    if (!eligible) {
+      const interval = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 1000); // Update every second
+      
+      return () => clearInterval(interval);
+    }
+  }, [eligible]);
 
   const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || referralLoading
 
@@ -249,45 +311,6 @@ export default function RoiPage() {
   const indexOfLastTransaction = currentPage * transactionsPerPage
   const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage
   const currentTransactions = filteredTransactions.slice(indexOfFirstTransaction, indexOfLastTransaction)
-
-  // Calculate eligibility
-  const now = new Date();
-  let eligible = false;
-  let timeLeft = 0; // Initialize timeLeft to 0
-  let timeLeftDisplay = '0';
-  
-  // Check if user has completed their first period
-  const timeSinceFirstInvestment = now.getTime() - activeInvestmentDate.getTime();
-  
-  if (timeSinceFirstInvestment < bonusPeriodMs) {
-    // Still in initial period
-    timeLeft = bonusPeriodMs - timeSinceFirstInvestment;
-    eligible = false;
-    
-    // Calculate time left in the appropriate unit
-    if (bonusWithdrawalUnit === 'minutes') {
-      const minutesLeft = Math.max(0, Math.ceil(timeLeft / (60 * 1000)));
-      timeLeftDisplay = `${minutesLeft}m`;
-    } else if (bonusWithdrawalUnit === 'hours') {
-      const hoursLeft = Math.max(0, Math.ceil(timeLeft / (60 * 60 * 1000)));
-      timeLeftDisplay = `${hoursLeft}h`;
-    } else {
-      // For days, show more detailed format
-      const daysLeft = Math.max(0, Math.ceil(timeLeft / (24 * 60 * 60 * 1000)));
-      if (daysLeft > 0) {
-        timeLeftDisplay = `${daysLeft}d`;
-      } else {
-        // If less than a day, show hours
-        const hoursLeft = Math.max(0, Math.ceil(timeLeft / (60 * 60 * 1000)));
-        timeLeftDisplay = `${hoursLeft}h`;
-      }
-    }
-  } else {
-    // Initial period completed - can withdraw anytime
-    timeLeft = 0;
-    eligible = true;
-    timeLeftDisplay = '0';
-  }
 
   const handleWithdrawBonus = async () => {
     try {
@@ -588,7 +611,19 @@ export default function RoiPage() {
                       <div className="flex-1">
                         <Progress value={100 * (1 - (timeLeft / bonusPeriodMs))} className="h-2 bg-gray-200" />
                       </div>
-                      <span className="text-xs text-gray-500 w-16 text-right">{eligible ? 'Now' : timeLeftDisplay}</span>
+                      <span className="text-xs text-gray-500 w-20 text-right font-mono">{eligible ? 'Now' : timeLeftDisplay}</span>
+                    </div>
+                    <div className="w-full text-center">
+                      {!eligible && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {Math.floor(timeLeft / (24 * 60 * 60 * 1000)) > 0 
+                            ? `${Math.floor(timeLeft / (24 * 60 * 60 * 1000))} days, ${Math.floor((timeLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))} hours remaining`
+                            : Math.floor(timeLeft / (60 * 60 * 1000)) > 0
+                            ? `${Math.floor(timeLeft / (60 * 60 * 1000))} hours, ${Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000))} minutes remaining`
+                            : `${Math.floor(timeLeft / (60 * 1000))} minutes remaining`
+                          }
+                        </p>
+                      )}
                     </div>
                     <Button
                       className={
@@ -597,7 +632,7 @@ export default function RoiPage() {
                       onClick={handleWithdrawBonus}
                       disabled={!eligible}
                     >
-                      {eligible ? 'Withdraw Bonus' : `Withdraw Bonus (Available in ${timeLeftDisplay})`}
+                      {eligible ? '🎉 Withdraw Bonus Now!' : `⏳ Withdraw Bonus (${timeLeftDisplay})`}
                     </Button>
                     {!eligible && (
                       <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after {bonusWithdrawalPeriod} {bonusWithdrawalUnit} of active investment. Once unlocked, you can withdraw bonuses anytime.</p>
