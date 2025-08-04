@@ -32,7 +32,7 @@ export interface Transaction {
   type: 'deposit' | 'withdrawal' | 'investment' | 'roi' | 'bonus' | 'referral' | 'transfer' | 'fee' | 'refund';
   amount: number;
   currency: 'naira' | 'usdt';
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   description: string;
   reference: string;
   externalReference?: string;
@@ -209,9 +209,10 @@ export const useCreateWithdrawal = () => {
       return handleApiResponse<Transaction>(response);
     },
     onSuccess: () => {
-      // Invalidate and refetch related queries
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals', 'my'] });
       toast.success('Withdrawal request created successfully');
     },
     onError: (error: any) => {
@@ -303,9 +304,7 @@ export const useWithdrawalSettings = () => {
   return useQuery({
     queryKey: ['settings', 'withdrawal'],
     queryFn: async () => {
-      console.log('🔄 useWithdrawalSettings - Fetching fresh data...');
       const response = await api.get(endpoints.settings.publicWithdrawal);
-      console.log('🔄 useWithdrawalSettings - Raw response:', response.data);
       
       let result;
       if (response.data && response.data.data) {
@@ -314,7 +313,6 @@ export const useWithdrawalSettings = () => {
         result = response.data;
       }
       
-      console.log('🔄 useWithdrawalSettings - Processed result:', result);
       return result;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - settings don't change often
@@ -349,8 +347,6 @@ export const useBonusWithdrawalPeriod = () => {
       const response = await api.get(endpoints.settings.bonusWithdrawalPeriod);
       const data = response.data;
       
-      console.log('🔄 useBonusWithdrawalPeriod - Raw response:', data);
-      
       // Get the values from the response
       const value = data.bonusWithdrawalPeriod || 15;
       const unit = data.bonusWithdrawalUnit || 'days';
@@ -378,7 +374,6 @@ export const useBonusWithdrawalPeriod = () => {
         displayText: `${value} ${unit}`
       };
       
-      console.log('🔄 useBonusWithdrawalPeriod - Processed result:', result);
       return result;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - settings don't change often
@@ -412,4 +407,43 @@ export const useBonusCountdown = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
+};
+
+// User withdrawals hook - gets withdrawal data directly
+export const useUserWithdrawals = () => {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: ['withdrawals', 'my'],
+    queryFn: async () => {
+      const response = await api.get('/withdrawals/my');
+      
+      // Return the full response structure that the frontend expects
+      const fullResponse = {
+        success: response.data.success,
+        data: response.data.data, // This is the withdrawals array
+        stats: response.data.stats,
+        total: response.data.total
+      };
+      
+      return fullResponse;
+    },
+    staleTime: 0, // Always consider data stale - force refetch
+    gcTime: 1 * 60 * 1000, // 1 minute
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch on mount
+    refetchOnReconnect: true, // Refetch on reconnect
+    retry: 1, // Retry once on failure
+  });
+
+  // Manual refresh function
+  const refreshWithdrawals = () => {
+    queryClient.invalidateQueries({ queryKey: ['withdrawals', 'my'] });
+    queryClient.removeQueries({ queryKey: ['withdrawals', 'my'] });
+  };
+
+  return {
+    ...query,
+    refreshWithdrawals,
+  };
 }; 

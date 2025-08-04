@@ -22,11 +22,13 @@ import {
   UsersIcon,
   GiftIcon,
   ClockIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 import { useUser } from '@/lib/hooks/useAuth'
 import { useReferrals, useReferralStats, ReferredUser } from '@/lib/hooks/useReferrals'
 import { useBonusWithdrawalPeriod } from '@/lib/hooks/useWallet'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function ReferralsPage() {
   const { data: user, isLoading: userLoading } = useUser()
@@ -34,10 +36,18 @@ export default function ReferralsPage() {
   const { data: stats, isLoading: statsLoading } = useReferralStats()
   const { data: bonusPeriodData } = useBonusWithdrawalPeriod()
   const [copied, setCopied] = useState(false)
+  const queryClient = useQueryClient()
 
   // Extract bonus period data with defaults
   const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
   const bonusWithdrawalUnit = bonusPeriodData?.unit || 'days';
+
+  const handleRefreshData = () => {
+    // Invalidate and refetch referral data
+    queryClient.invalidateQueries({ queryKey: ['referrals'] })
+    queryClient.invalidateQueries({ queryKey: ['referral-stats'] })
+    toast.success('Data refreshed!')
+  }
 
   const handleCopyReferralCode = async () => {
     if (!user?.referralCode) return
@@ -164,6 +174,14 @@ export default function ReferralsPage() {
           </h1>
           <p className="text-base sm:text-lg text-gray-500">Manage your referral network and earnings</p>
         </div>
+        <Button
+          onClick={handleRefreshData}
+          variant="outline"
+          className="bg-white/50 backdrop-blur-sm border-2 hover:bg-gray-100 transition-colors"
+        >
+          <ArrowPathIcon className="h-4 w-4 mr-2" />
+          Refresh Data
+        </Button>
       </motion.div>
 
       {/* Referral Code Section */}
@@ -443,7 +461,6 @@ export default function ReferralsPage() {
                             Paid
                           </Badge>
                         )}
-                        <p className="text-xs text-gray-500">{referral.totalInvestments} investments</p>
                       </div>
                     </div>
                   </motion.div>

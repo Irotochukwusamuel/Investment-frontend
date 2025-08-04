@@ -18,6 +18,7 @@ import {
   SparklesIcon,
   LockClosedIcon,
   CheckCircleIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline'
 import {
   Card,
@@ -433,7 +434,7 @@ export default function RoiPage() {
                     </div>
                     <Button
                       onClick={handleWithdrawDailyRoi}
-                      disabled={dailyRoiNaira <= 0 && dailyRoiUsdt <= 0}
+                      disabled={totalRoiNaira <= 0 && totalRoiUsdt <= 0}
                       className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Withdraw Daily ROI
@@ -441,6 +442,11 @@ export default function RoiPage() {
                     <p className="text-xs text-gray-500 text-center">
                       Withdraws accumulated daily ROI to available balance
                     </p>
+                    {totalRoiNaira <= 0 && totalRoiUsdt <= 0 && (
+                      <p className="text-xs text-gray-500 text-center mt-1">
+                        No daily ROI available to withdraw. ROI accumulates over time.
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -523,8 +529,10 @@ export default function RoiPage() {
                   <div className="mt-4 flex flex-col gap-2 items-center">
                     {/* Progress/Countdown */}
                     <div className="w-full flex items-center gap-2">
-                      {eligible ? (
+                      {eligible && availableBonus > 0 ? (
                         <span className="text-green-600 text-xs flex items-center gap-1"><CheckCircleIcon className="h-4 w-4" />Available</span>
+                      ) : availableBonus <= 0 ? (
+                        <span className="text-gray-400 text-xs flex items-center gap-1"><XCircleIcon className="h-4 w-4" />No Bonuses</span>
                       ) : (
                         <span className="text-gray-400 text-xs flex items-center gap-1"><LockClosedIcon className="h-4 w-4" />Locked</span>
                       )}
@@ -547,15 +555,18 @@ export default function RoiPage() {
                     </div>
                     <Button
                       className={
-                        `w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-all duration-300 mt-2 ${eligible ? 'animate-pulse shadow-lg' : 'opacity-60 cursor-not-allowed'}`
+                        `w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 transition-all duration-300 mt-2 ${eligible && availableBonus > 0 ? 'animate-pulse shadow-lg' : 'opacity-60 cursor-not-allowed'}`
                       }
                       onClick={handleWithdrawBonus}
-                      disabled={!eligible}
+                      disabled={!eligible || availableBonus <= 0}
                     >
-                      {eligible ? '🎉 Withdraw Bonus Now!' : `⏳ Withdraw Bonus (${timeLeftDisplay})`}
+                      {eligible && availableBonus > 0 ? '🎉 Withdraw Bonus Now!' : `⏳ Withdraw Bonus (${timeLeftDisplay})`}
                     </Button>
                     {!eligible && (
                       <p className="text-xs text-gray-500 mt-2 text-center">Bonuses can only be withdrawn after {bonusWithdrawalPeriod} {bonusWithdrawalUnit} of active investment. Once unlocked, you can withdraw bonuses anytime.</p>
+                    )}
+                    {eligible && availableBonus <= 0 && (
+                      <p className="text-xs text-gray-500 mt-2 text-center">No bonuses available for withdrawal. Earn bonuses through referrals or welcome bonuses.</p>
                     )}
                     {bonusWithdrawn && (
                       <p className="text-xs text-green-600 mt-2 text-center animate-bounce">Bonus withdrawn successfully!</p>

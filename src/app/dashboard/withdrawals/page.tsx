@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { useWalletBalance, useTransactionHistory } from '@/lib/hooks/useWallet'
+import { useWalletBalance, useTransactionHistory, useUserWithdrawals } from '@/lib/hooks/useWallet'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 export default function WithdrawalsPage() {
@@ -56,65 +56,43 @@ export default function WithdrawalsPage() {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   })
+  const { data: withdrawalData, isLoading: withdrawalsLoading } = useUserWithdrawals()
 
-  const isLoading = walletLoading || transactionsLoading
+  const isLoading = walletLoading || transactionsLoading || withdrawalsLoading
   const withdrawalTransactions = transactionData?.transactions || []
+  const withdrawals = withdrawalData?.data || []
 
   // Calculate withdrawal statistics
   const calculateWithdrawalStats = () => {
-    const totalWithdrawnNaira = withdrawalTransactions
-      .filter(t => t.status === 'completed' && t.currency === 'naira')
-      .reduce((sum, t) => sum + t.amount, 0)
+    const pendingWithdrawalsNaira = withdrawals
+      .filter((w: any) => (w.status === 'pending' || w.status === 'processing') && w.currency === 'naira')
+      .reduce((sum: number, w: any) => sum + w.amount, 0);
     
-    const totalWithdrawnUsdt = withdrawalTransactions
-      .filter(t => t.status === 'completed' && t.currency === 'usdt')
-      .reduce((sum, t) => sum + t.amount, 0)
+    const pendingWithdrawalsUsdt = withdrawals
+      .filter((w: any) => (w.status === 'pending' || w.status === 'processing') && w.currency === 'usdt')
+      .reduce((sum: number, w: any) => sum + w.amount, 0);
     
-    const pendingWithdrawalsNaira = withdrawalTransactions
-      .filter(t => t.status === 'pending' && t.currency === 'naira')
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const pendingWithdrawalsUsdt = withdrawalTransactions
-      .filter(t => t.status === 'pending' && t.currency === 'usdt')
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const thisMonthWithdrawalsNaira = withdrawalTransactions
-      .filter(t => {
-        const transactionDate = new Date(t.createdAt)
-        const now = new Date()
-        return transactionDate.getMonth() === now.getMonth() && 
-               transactionDate.getFullYear() === now.getFullYear() &&
-               t.status === 'completed' && t.currency === 'naira'
-      })
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const thisMonthWithdrawalsUsdt = withdrawalTransactions
-      .filter(t => {
-        const transactionDate = new Date(t.createdAt)
-        const now = new Date()
-        return transactionDate.getMonth() === now.getMonth() && 
-               transactionDate.getFullYear() === now.getFullYear() &&
-               t.status === 'completed' && t.currency === 'usdt'
-      })
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    return { 
-      totalWithdrawnNaira, 
-      totalWithdrawnUsdt, 
-      pendingWithdrawalsNaira, 
-      pendingWithdrawalsUsdt, 
-      thisMonthWithdrawalsNaira, 
-      thisMonthWithdrawalsUsdt 
-    }
-  }
+    const totalWithdrawnNaira = withdrawals
+      .filter((w: any) => w.status === 'completed' && w.currency === 'naira')
+      .reduce((sum: number, w: any) => sum + w.amount, 0);
+    
+    const totalWithdrawnUsdt = withdrawals
+      .filter((w: any) => w.status === 'completed' && w.currency === 'usdt')
+      .reduce((sum: number, w: any) => sum + w.amount, 0);
+    
+    return {
+      pendingWithdrawalsNaira,
+      pendingWithdrawalsUsdt,
+      totalWithdrawnNaira,
+      totalWithdrawnUsdt,
+    };
+  };
 
   const { 
     totalWithdrawnNaira, 
     totalWithdrawnUsdt, 
     pendingWithdrawalsNaira, 
-    pendingWithdrawalsUsdt, 
-    thisMonthWithdrawalsNaira, 
-    thisMonthWithdrawalsUsdt 
+    pendingWithdrawalsUsdt
   } = calculateWithdrawalStats()
 
   const getStatusColor = (status: string) => {
@@ -123,10 +101,27 @@ export default function WithdrawalsPage() {
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
+      case 'processing':
+        return 'bg-blue-100 text-blue-800'
       case 'failed':
         return 'bg-red-100 text-red-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Successfully processed'
+      case 'pending':
+        return 'Awaiting processing'
+      case 'processing':
+        return 'Being processed'
+      case 'failed':
+        return 'Processing failed'
+      default:
+        return 'Unknown status'
     }
   }
 
@@ -141,16 +136,16 @@ export default function WithdrawalsPage() {
   }
 
   // Calculate pagination
-  const filteredTransactions = withdrawalTransactions.filter(transaction => {
+  const filteredTransactions = withdrawals.filter((withdrawal: any) => {
     const matchesSearch = 
-      transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.amount.toString().includes(searchQuery.toLowerCase()) ||
-      transaction.reference.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter
+      withdrawal.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      withdrawal.amount.toString().includes(searchQuery.toLowerCase()) ||
+      withdrawal.reference.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || withdrawal.status === statusFilter
     const matchesType = typeFilter === 'all' || 
-      (typeFilter === 'bank' && transaction.paymentMethod?.includes('bank')) ||
-      (typeFilter === 'crypto' && transaction.paymentMethod?.includes('crypto'))
-    const matchesCurrency = currencyFilter === 'all' || transaction.currency === currencyFilter.toLowerCase()
+      (typeFilter === 'bank' && withdrawal.withdrawalMethod?.includes('bank')) ||
+      (typeFilter === 'crypto' && withdrawal.withdrawalMethod?.includes('crypto'))
+    const matchesCurrency = currencyFilter === 'all' || withdrawal.currency === currencyFilter.toLowerCase()
     return matchesSearch && matchesStatus && matchesType && matchesCurrency
   })
 
@@ -185,6 +180,15 @@ export default function WithdrawalsPage() {
               <li>• Locked bonuses are not available for withdrawal until activation period</li>
             </ul>
           </div>
+          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-800 font-medium">Withdrawal Process:</p>
+            <ul className="text-xs text-green-700 mt-1 space-y-1">
+              <li>• <strong>Pending:</strong> Withdrawal request submitted, awaiting processing</li>
+              <li>• <strong>Processing:</strong> Payment being processed by our payment provider</li>
+              <li>• <strong>Completed:</strong> Payment successfully sent to your account</li>
+              <li>• <strong>Failed:</strong> Payment failed, amount will be refunded</li>
+            </ul>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <motion.div
@@ -205,6 +209,7 @@ export default function WithdrawalsPage() {
               Pending: {formatCurrency(pendingWithdrawalsNaira, 'naira')} / {formatCurrency(pendingWithdrawalsUsdt, 'usdt')}
             </Badge>
           </motion.div>
+          
         </div>
       </motion.div>
 
@@ -255,10 +260,6 @@ export default function WithdrawalsPage() {
                         {formatCurrency(walletBalance?.walletBalances?.usdt || 0, 'usdt')}
                       </p>
                       <p className="text-sm text-gray-500">Total available</p>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Minimum Withdrawal</span>
-                      <span className="font-medium">₦2,000</span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
                       <div className="flex justify-between">
@@ -352,7 +353,7 @@ export default function WithdrawalsPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">This Month</span>
-                      <span className="font-medium">{formatCurrency(thisMonthWithdrawalsNaira, 'naira')} / {formatCurrency(thisMonthWithdrawalsUsdt, 'usdt')}</span>
+                      <span className="font-medium">Coming soon</span>
                     </div>
                   </div>
                 </CardContent>
@@ -404,9 +405,9 @@ export default function WithdrawalsPage() {
                     </Button>
                   </div>
                 ) : (
-                  currentTransactions.map((transaction) => (
+                  currentTransactions.map((withdrawal: any) => (
                     <motion.div
-                      key={transaction.id}
+                      key={withdrawal.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
@@ -414,21 +415,22 @@ export default function WithdrawalsPage() {
                     >
                       <div className="flex items-center space-x-4">
                         <div className="rounded-full bg-gradient-to-r from-[#ff5858] via-[#ff7e5f] to-[#ff9966] p-2">
-                          {getTypeIcon(transaction.paymentMethod)}
+                          {getTypeIcon(withdrawal.withdrawalMethod)}
                         </div>
                         <div>
-                          <p className="font-medium">{formatCurrency(transaction.amount, transaction.currency)}</p>
-                          <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                          <p className="font-medium">{formatCurrency(withdrawal.amount, withdrawal.currency)}</p>
+                          <p className="text-sm text-gray-500">{formatDate(withdrawal.createdAt)}</p>
+                          <p className="text-xs text-gray-400">{getStatusDescription(withdrawal.status)}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                            getStatusColor(transaction.status)
+                            getStatusColor(withdrawal.status)
                           )}
                         >
-                          {transaction.status}
+                          {withdrawal.status}
                         </span>
                       </div>
                     </motion.div>
@@ -509,9 +511,9 @@ export default function WithdrawalsPage() {
                       </p>
                     </div>
                   ) : (
-                    currentTransactions.map((transaction) => (
+                    currentTransactions.map((withdrawal: any) => (
                       <motion.div
-                        key={transaction.id}
+                        key={withdrawal.id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
@@ -522,11 +524,11 @@ export default function WithdrawalsPage() {
                             <ArrowDownTrayIcon className="h-5 w-5 text-[#ff5858]" />
                           </div>
                           <div>
-                            <p className="font-semibold text-base sm:text-lg">{formatCurrency(transaction.amount, transaction.currency)}</p>
+                            <p className="font-semibold text-base sm:text-lg">{formatCurrency(withdrawal.amount, withdrawal.currency)}</p>
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                              <p className="text-sm text-gray-500">{formatDate(withdrawal.createdAt)}</p>
                               <span className="text-sm text-gray-500 hidden sm:inline">•</span>
-                              <p className="text-sm text-gray-500">{transaction.currency.toUpperCase()}</p>
+                              <p className="text-sm text-gray-500">{withdrawal.currency.toUpperCase()}</p>
                             </div>
                           </div>
                         </div>
@@ -534,10 +536,10 @@ export default function WithdrawalsPage() {
                           <span
                             className={cn(
                               "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
-                              getStatusColor(transaction.status)
+                              getStatusColor(withdrawal.status)
                             )}
                           >
-                            {transaction.status}
+                            {withdrawal.status}
                           </span>
                         </div>
                       </motion.div>

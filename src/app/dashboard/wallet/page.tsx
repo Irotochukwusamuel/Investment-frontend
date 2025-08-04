@@ -48,7 +48,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Inter, Poppins } from 'next/font/google'
-import { useWalletBalance, useTransactionHistory, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings, usePlatformSettings } from '@/lib/hooks/useWallet'
+import { useWalletBalance, useTransactionHistory, useUserWithdrawals, useCreateDeposit, useCreateWithdrawal, useWithdrawalSettings, usePlatformSettings } from '@/lib/hooks/useWallet'
 import { useUsdtSettings } from '@/lib/hooks/useUsdtSettings'
 import { FintavaPaymentDialog } from '@/components/payments/FintavaPaymentDialog'
 import { endpoints, api } from '@/lib/api'
@@ -119,6 +119,7 @@ export default function WalletPage() {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   })
+  const { data: withdrawalData, isLoading: withdrawalsLoading } = useUserWithdrawals()
   const createDeposit = useCreateDeposit()
   const createWithdrawal = useCreateWithdrawal()
 
@@ -127,14 +128,16 @@ export default function WalletPage() {
   const { data: platformSettings, isLoading: platformSettingsLoading } = usePlatformSettings();
   const { data: usdtSettings, isLoading: usdtSettingsLoading } = useUsdtSettings();
 
-  const isLoading = walletLoading || transactionsLoading || settingsLoading || platformSettingsLoading || usdtSettingsLoading
+  const isLoading = walletLoading || transactionsLoading || withdrawalsLoading || settingsLoading || platformSettingsLoading || usdtSettingsLoading
   const transactions = transactionData?.transactions || []
+  const withdrawals = withdrawalData?.data || []
 
-  // Calculate pending withdrawal amounts from transaction history
+  // Calculate pending withdrawal amounts from withdrawal data directly
   const calculatePendingWithdrawals = (currency: string) => {
-    return transactions
-      .filter(t => t.type === 'withdrawal' && t.status === 'pending' && t.currency === currency.toLowerCase())
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const pendingAmount = withdrawals
+      .filter((w: any) => (w.status === 'pending' || w.status === 'processing') && w.currency === currency.toLowerCase())
+      .reduce((sum: number, w: any) => sum + w.amount, 0);
+    return pendingAmount;
   };
 
   // Get withdrawal limits and fees from settings with proper null checks
@@ -426,6 +429,7 @@ export default function WalletPage() {
               <span className="font-medium">Total Balance: {formatAmount(walletBalances[0].amount, walletBalances[0].currency)}</span>
             </Badge>
           </motion.div>
+          
         </div>
       </motion.div>
 

@@ -63,12 +63,12 @@ export const useCreateWithdrawal = () => {
     onSuccess: (data) => {
       toast.success('Withdrawal request submitted successfully!');
       queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals', 'my'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to submit withdrawal request';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to submit withdrawal request');
     },
   });
 };
@@ -118,19 +118,19 @@ export const useCancelWithdrawal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (id: string): Promise<Withdrawal> => {
-      const response = await api.patch(`/withdrawals/${id}/cancel`);
+    mutationFn: async (withdrawalId: string): Promise<Withdrawal> => {
+      const response = await api.post(`/withdrawals/${withdrawalId}/cancel`);
       return response.data.data;
     },
     onSuccess: (data) => {
-      toast.success('Withdrawal cancelled successfully');
+      toast.success('Withdrawal cancelled successfully!');
       queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
-      queryClient.invalidateQueries({ queryKey: ['withdrawal', data._id] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals', 'my'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to cancel withdrawal';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to cancel withdrawal');
     },
   });
 };
@@ -140,33 +140,20 @@ export const useProcessWithdrawal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      action, 
-      externalReference,
-      notes 
-    }: { 
-      id: string; 
-      action: 'approve' | 'reject'; 
-      externalReference?: string;
-      notes?: string;
-    }): Promise<Withdrawal> => {
-      const response = await api.patch(`/withdrawals/${id}/process`, {
-        action,
-        externalReference,
-        notes,
-      });
+    mutationFn: async ({ withdrawalId, action }: { withdrawalId: string; action: 'approve' | 'reject' }): Promise<Withdrawal> => {
+      const response = await api.post(`/withdrawals/${withdrawalId}/${action}`);
       return response.data.data;
     },
-    onSuccess: (data) => {
-      toast.success(`Withdrawal ${data.status} successfully`);
+    onSuccess: (data, variables) => {
+      const action = variables.action === 'approve' ? 'approved' : 'rejected';
+      toast.success(`Withdrawal ${action} successfully!`);
       queryClient.invalidateQueries({ queryKey: ['withdrawals'] });
-      queryClient.invalidateQueries({ queryKey: ['withdrawal', data._id] });
-      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['withdrawals', 'my'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to process withdrawal';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to process withdrawal');
     },
   });
 };
