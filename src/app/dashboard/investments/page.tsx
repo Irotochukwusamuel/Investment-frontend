@@ -177,11 +177,12 @@ export default function InvestmentsPage() {
       const updateCountdown = () => {
         const now = new Date();
         
-        // Use nextRoiUpdate instead of nextPayoutDate
+        // Use nextRoiUpdate if available, otherwise calculate from start date
         let nextRoiUpdate = investment.nextRoiUpdate;
         if (!nextRoiUpdate && investment.startDate) {
           const startDate = new Date(investment.startDate);
-          nextRoiUpdate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000).toISOString(); // Add 1 day
+          // ROI updates happen every hour, so add 1 hour to start date
+          nextRoiUpdate = new Date(startDate.getTime() + 60 * 60 * 1000).toISOString();
         }
         
         if (!nextRoiUpdate) {

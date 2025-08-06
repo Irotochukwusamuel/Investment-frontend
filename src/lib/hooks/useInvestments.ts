@@ -69,6 +69,7 @@ export interface Investment {
   nextPayoutDate?: string;
   nextRoiUpdate?: string;
   earnedAmount: number;
+  totalAccumulatedRoi: number;
   expectedReturn: number;
   lastRoiUpdate?: string;
 }

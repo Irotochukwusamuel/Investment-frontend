@@ -135,14 +135,29 @@ export default function RoiPage() {
   // Calculate separate ROI values for Naira and USDT
   const totalRoiNaira = investments?.reduce((sum, inv) => {
     if (inv.currency === 'naira') {
-      return sum + (inv.earnedAmount || 0);
+      return sum + (inv.totalAccumulatedRoi || 0); // Use totalAccumulatedRoi for total display
     }
     return sum;
   }, 0) || 0;
 
   const totalRoiUsdt = investments?.reduce((sum, inv) => {
     if (inv.currency === 'usdt') {
-      return sum + (inv.earnedAmount || 0);
+      return sum + (inv.totalAccumulatedRoi || 0); // Use totalAccumulatedRoi for total display
+    }
+    return sum;
+  }, 0) || 0;
+
+  // Calculate daily withdrawable ROI by currency (current earnedAmount)
+  const dailyRoiNaira = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'naira') {
+      return sum + (inv.earnedAmount || 0); // Use earnedAmount for withdrawable amount
+    }
+    return sum;
+  }, 0) || 0;
+
+  const dailyRoiUsdt = investments?.reduce((sum, inv) => {
+    if (inv.currency === 'usdt') {
+      return sum + (inv.earnedAmount || 0); // Use earnedAmount for withdrawable amount
     }
     return sum;
   }, 0) || 0;
@@ -165,10 +180,6 @@ export default function RoiPage() {
     }
     return sum;
   }, 0) || 0;
-
-  // Calculate daily ROI by currency (accumulated hourly ROI)
-  const dailyRoiNaira = hourlyRoiNaira * 24; // Convert hourly to daily
-  const dailyRoiUsdt = hourlyRoiUsdt * 24; // Convert hourly to daily
 
   // Calculate total invested by currency
   const totalInvestedNaira = investments?.reduce((sum, inv) => {
@@ -197,10 +208,8 @@ export default function RoiPage() {
 
   // Calculate bonus amounts from wallet balance data (more accurate)
   const totalLockedBonus = walletBalance?.lockedBalances?.naira || 0;
-  const totalReferralBonus = walletBalance?.referralEarnings || 0;
-  
-  // Calculate welcome bonus as the difference between total locked bonus and referral bonus
-  const totalWelcomeBonus = Math.max(0, totalLockedBonus - totalReferralBonus);
+  const totalWelcomeBonus = walletBalance?.lockedWelcomeBonuses?.naira || 0;
+  const totalReferralBonus = walletBalance?.lockedReferralBonuses?.naira || 0;
 
   // Calculate available bonus (only from active investments for withdrawal)
   const availableBonus = totalLockedBonus;
@@ -319,7 +328,7 @@ export default function RoiPage() {
           >
             <Badge variant="outline" className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border-2">
               <ChartBarIcon className="h-5 w-5 text-blue-600" />
-              <span className="font-medium">Total ROI: {formatCurrency(totalRoi, 'naira')} ({formatCurrency(totalRoiUsdt, 'usdt')})</span>
+              <span className="font-medium">Total ROI: {formatCurrency(totalRoiNaira, 'naira')} ({formatCurrency(totalRoiUsdt, 'usdt')})</span>
             </Badge>
           </motion.div>
           <motion.div

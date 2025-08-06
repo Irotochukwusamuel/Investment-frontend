@@ -17,6 +17,14 @@ export interface WalletBalance {
     naira: number;
     usdt: number;
   };
+  lockedWelcomeBonuses: {
+    naira: number;
+    usdt: number;
+  };
+  lockedReferralBonuses: {
+    naira: number;
+    usdt: number;
+  };
   totalBalance: {
     naira: number;
     usdt: number;
@@ -144,6 +152,10 @@ export const useWalletBalance = () => {
       // Get the main wallet (should be the only wallet now)
       const mainWallet = wallets.find(w => w.type === 'main') || { nairaBalance: 0, usdtBalance: 0 };
       
+      // Get detailed bonus information
+      const bonusResponse = await api.get(`/wallets/user/${user?.id}/bonuses`);
+      const bonusDetails = handleApiResponse<any>(bonusResponse);
+      
       return {
         walletBalances: {
           naira: mainWallet.nairaBalance || 0,
@@ -154,12 +166,20 @@ export const useWalletBalance = () => {
           usdt: 0,
         },
         lockedBalances: {
-          naira: mainWallet.lockedNairaBonuses || 0,
-          usdt: mainWallet.lockedUsdtBonuses || 0,
+          naira: bonusDetails.totalLockedBonuses?.naira || 0,
+          usdt: bonusDetails.totalLockedBonuses?.usdt || 0,
+        },
+        lockedWelcomeBonuses: {
+          naira: bonusDetails.lockedWelcomeBonuses?.naira || 0,
+          usdt: bonusDetails.lockedWelcomeBonuses?.usdt || 0,
+        },
+        lockedReferralBonuses: {
+          naira: bonusDetails.lockedReferralBonuses?.naira || 0,
+          usdt: bonusDetails.lockedReferralBonuses?.usdt || 0,
         },
         totalBalance: {
-          naira: (mainWallet.nairaBalance || 0) + (mainWallet.lockedNairaBonuses || 0),
-          usdt: (mainWallet.usdtBalance || 0) + (mainWallet.lockedUsdtBonuses || 0),
+          naira: (mainWallet.nairaBalance || 0) + (bonusDetails.totalLockedBonuses?.naira || 0),
+          usdt: (mainWallet.usdtBalance || 0) + (bonusDetails.totalLockedBonuses?.usdt || 0),
         },
         totalInvested: mainWallet.totalInvestments || 0,
         totalEarnings: mainWallet.totalEarnings || 0,
