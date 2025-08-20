@@ -73,17 +73,18 @@ export default function DashboardPage() {
   const totalBalance = walletBalance?.totalBalance?.naira || 0
   const totalBalanceUSDT = walletBalance?.totalBalance?.usdt || 0
   
-  // Calculate separate ROI values for Naira and USDT
+  // Calculate separate ROI values for Naira and USDT (all-time earnings)
+  // Use totalAccumulatedRoi to match the ROI page "Total earnings"
   const totalROINaira = investments?.reduce((sum, inv) => {
     if (inv.currency === 'naira') {
-      return sum + (inv.earnedAmount || 0);
+      return sum + (inv.totalAccumulatedRoi || 0);
     }
     return sum;
   }, 0) || 0;
 
   const totalROIUsdt = investments?.reduce((sum, inv) => {
     if (inv.currency === 'usdt') {
-      return sum + (inv.earnedAmount || 0);
+      return sum + (inv.totalAccumulatedRoi || 0);
     }
     return sum;
   }, 0) || 0;

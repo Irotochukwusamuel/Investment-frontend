@@ -31,9 +31,11 @@ interface User {
   referralCode: string;
   referredBy?: string;
   totalReferrals: number;
-  totalInvestments: number;
-  totalEarnings: number;
-  walletBalance: number;
+  totalInvestments?: number; // legacy
+  totalEarnings?: number; // legacy
+  walletBalance?: number; // legacy
+  totalInvestmentAmount?: number; // sum of all investment amounts
+  totalInvestmentCount?: number; // number of investments
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -634,13 +636,13 @@ export default function UserManagementComponent() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{user.totalInvestments}</p>
-                          <p className="text-gray-500">{formatCurrency(user.totalEarnings)}</p>
+                          <p className="font-medium">{user.totalInvestmentCount ?? user.totalInvestments ?? 0}</p>
+                          <p className="text-gray-500">{formatCurrency(user.totalInvestmentAmount ?? 0)}</p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <p className="font-medium">{formatCurrency(user.walletBalance)}</p>
+                          <p className="font-medium">{formatCurrency(user.walletBalance ?? 0)}</p>
                         </div>
                       </TableCell>
                       <TableCell>{formatDate(user.createdAt)}</TableCell>

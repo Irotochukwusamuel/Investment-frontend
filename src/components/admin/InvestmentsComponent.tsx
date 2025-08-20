@@ -38,6 +38,7 @@ interface Investment {
   endDate: string;
   status: 'pending' | 'active' | 'completed' | 'cancelled' | 'paused';
   earnedAmount: number;
+  totalAccumulatedRoi?: number;
   expectedReturn: number;
   autoReinvest: boolean;
   createdAt: string;
@@ -317,7 +318,7 @@ export default function InvestmentsComponent() {
                   <TableHead>Plan</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Daily ROI</TableHead>
-                  <TableHead>Earned</TableHead>
+                  <TableHead>Earned (Total ROI)</TableHead>
                   <TableHead>Start Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -353,7 +354,7 @@ export default function InvestmentsComponent() {
                     </TableCell>
                     <TableCell>{investment.dailyRoi || 0}%</TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(investment.earnedAmount, investment.currency)}
+                      {formatCurrency((investment.totalAccumulatedRoi ?? 0), investment.currency)}
                     </TableCell>
                     <TableCell>{formatDate(investment.startDate)}</TableCell>
                     <TableCell>

@@ -780,7 +780,7 @@ export default function InvestmentsPage() {
                           <div>
                             <p className="text-sm text-gray-500">Total Earnings</p>
                             <p className="font-semibold text-green-600">
-                              {formatCurrency((investment.amount ?? 0) + (investment.earnedAmount ?? 0), investment.currency)}
+                              {formatCurrency(investment.totalAccumulatedRoi ?? 0, investment.currency)}
                             </p>
                           </div>
                           <div>
