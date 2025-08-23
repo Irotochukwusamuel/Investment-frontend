@@ -200,8 +200,10 @@ export default function InvestmentsPage() {
             
             if (hours > 0) {
               newCountdowns[investment.id] = `${hours}h ${minutes}m`;
-            } else {
+            } else if (minutes > 0) {
               newCountdowns[investment.id] = `${minutes}m ${seconds}s`;
+            } else {
+              newCountdowns[investment.id] = `${seconds}s`;
             }
           }
         }
@@ -212,7 +214,7 @@ export default function InvestmentsPage() {
       // Initialize immediately
       updateCountdown();
       
-      // Set up interval
+      // Set up interval - update every second for real-time countdown
       timers[idx] = setInterval(updateCountdown, 1000);
     });
     
