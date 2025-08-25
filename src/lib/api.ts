@@ -151,6 +151,14 @@ export const endpoints = {
     active: '/notices/active',
   },
   
+  // ROI Notifications
+  roiNotifications: {
+    history: '/roi-notifications/history',
+    stats: '/roi-notifications/stats',
+    markAsRead: (id: string) => `/roi-notifications/${id}/read`,
+    markAllAsRead: '/roi-notifications/mark-all-read',
+  },
+  
   // Health
   health: '/health',
   
