@@ -123,6 +123,17 @@ export default function InvestmentsComponent() {
     }
   };
 
+  // Admin reconcile investment earnings
+  const reconcileInvestment = async (investmentId: string) => {
+    try {
+      const response = await api.post(`${endpoints.admin.investments}/${investmentId}/reconcile`);
+      setInvestments(investments.map(inv => inv._id === investmentId ? response.data : inv));
+      toast.success('Investment reconciled successfully');
+    } catch (error) {
+      toast.error('Failed to reconcile investment');
+    }
+  };
+
   // Delete investment
   const deleteInvestment = async (id: string) => {
     try {
@@ -370,6 +381,13 @@ export default function InvestmentsComponent() {
                           onClick={() => handleViewDetails(investment)}
                         >
                           View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => reconcileInvestment(investment._id)}
+                        >
+                          Reconcile
                         </Button>
                         {investment.status === 'active' && (
                           <Button
