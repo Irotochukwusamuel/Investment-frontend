@@ -134,6 +134,39 @@ export default function InvestmentsComponent() {
     }
   };
 
+  // Test hourly ROI cycle
+  const testHourlyCycle = async (investmentId: string) => {
+    try {
+      const response = await api.post(`${endpoints.admin.investments}/${investmentId}/test-hourly-cycle`);
+      setInvestments(investments.map(inv => inv._id === investmentId ? response.data.investment : inv));
+      toast.success(`Hourly cycle test completed. Added ${response.data.hourlyRoiAdded.toFixed(4)} ROI`);
+    } catch (error) {
+      toast.error('Failed to test hourly cycle');
+    }
+  };
+
+  // Test daily ROI cycle
+  const testDailyCycle = async (investmentId: string) => {
+    try {
+      const response = await api.post(`${endpoints.admin.investments}/${investmentId}/test-daily-cycle`);
+      setInvestments(investments.map(inv => inv._id === investmentId ? response.data.investment : inv));
+      toast.success(`Daily cycle test completed. Transferred ${response.data.cycleEarningsTransferred.toFixed(4)} to total earnings`);
+    } catch (error) {
+      toast.error('Failed to test daily cycle');
+    }
+  };
+
+  // Test end of investment
+  const testEndInvestment = async (investmentId: string) => {
+    try {
+      const response = await api.post(`${endpoints.admin.investments}/${investmentId}/test-end-investment`);
+      setInvestments(investments.map(inv => inv._id === investmentId ? response.data.investment : inv));
+      toast.success(`Investment end test completed. Transferred ${response.data.totalEarningsTransferred.toFixed(4)} to wallet`);
+    } catch (error) {
+      toast.error('Failed to test end of investment');
+    }
+  };
+
   // Delete investment
   const deleteInvestment = async (id: string) => {
     try {
@@ -389,6 +422,34 @@ export default function InvestmentsComponent() {
                         >
                           Reconcile
                         </Button>
+                        {investment.status === 'active' && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => testHourlyCycle(investment._id)}
+                              className="bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                            >
+                              Test Hourly
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => testDailyCycle(investment._id)}
+                              className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                            >
+                              Test Daily
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => testEndInvestment(investment._id)}
+                              className="bg-red-50 hover:bg-red-100 border-red-200 text-red-700"
+                            >
+                              Test End
+                            </Button>
+                          </>
+                        )}
                         {investment.status === 'active' && (
                           <Button
                             variant="outline"
