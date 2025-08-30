@@ -466,4 +466,52 @@ export const useUserWithdrawals = () => {
     ...query,
     refreshWithdrawals,
   };
+};
+
+// ROI transactions hook - gets ROI transaction history
+export const useRoiTransactions = (filters?: {
+  page?: number;
+  limit?: number;
+  currency?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) => {
+  return useQuery({
+    queryKey: ['transactions', 'roi', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters?.page) params.append('page', filters.page.toString());
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+      if (filters?.currency) params.append('currency', filters.currency);
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
+      
+      // Add type filter for ROI transactions
+      params.append('type', 'roi');
+      
+      const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
+     
+      const transactions = handleApiResponse<Transaction[]>(response);
+      
+      return {
+        transactions,
+        pagination: {
+          page: filters?.page || 1,
+          limit: filters?.limit || 50,
+          total: transactions.length,
+          pages: 1,
+        },
+      };
+    },
+    staleTime: 0, // Always consider data stale - force refetch
+    gcTime: 1 * 60 * 1000, // 1 minute
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchOnMount: true, // Always refetch on mount
+    refetchOnReconnect: true, // Refetch on reconnect
+    retry: 1, // Retry once on failure
+  });
 }; 

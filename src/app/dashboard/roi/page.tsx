@@ -51,10 +51,11 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMyInvestments, useInvestmentStats, type Investment } from '@/lib/hooks/useInvestments'
 import { useWithdrawBonus } from '@/lib/hooks/useBonus'
-import { useBonusWithdrawalPeriod, useBonusCountdown, useWalletBalance } from '@/lib/hooks/useWallet'
+import { useBonusWithdrawalPeriod, useBonusCountdown, useWalletBalance, useRoiTransactions } from '@/lib/hooks/useWallet'
 import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
 import { api, endpoints } from '@/lib/api'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface RoiTransaction {
   id: number
@@ -98,13 +99,18 @@ const getPlanData = (investment: Investment) => {
 };
 
 export default function RoiPage() {
-  const { data: investments, isLoading: investmentsLoading } = useMyInvestments()
-  const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
+  const { data: investments, isLoading: investmentsLoading, refetch: refetchInvestments } = useMyInvestments()
+  const { data: investmentStats, isLoading: statsLoading, refetch: refetchStats } = useInvestmentStats()
   const { data: bonusPeriodData, isLoading: bonusPeriodLoading } = useBonusWithdrawalPeriod()
   const { data: bonusCountdown, isLoading: countdownLoading } = useBonusCountdown()
   const withdrawBonusMutation = useWithdrawBonus()
   const { data: referralStats, isLoading: referralLoading } = useReferralStats()
-  const { data: walletBalance, isLoading: walletLoading } = useWalletBalance()
+  const { data: walletBalance, isLoading: walletLoading, refetch: refetchWallet } = useWalletBalance()
+  const { data: roiTransactionsData, isLoading: roiTransactionsLoading } = useRoiTransactions({
+    limit: 50,
+    sortBy: 'createdAt',
+    sortOrder: 'desc'
+  })
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [transactionsPerPage] = useState(10)
@@ -112,6 +118,9 @@ export default function RoiPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
+  const [isWithdrawingDailyRoi, setIsWithdrawingDailyRoi] = useState(false);
+  const [dailyRoiWithdrawn, setDailyRoiWithdrawn] = useState(false);
+  const queryClient = useQueryClient()
 
   // Extract bonus period data with defaults
   const bonusWithdrawalPeriod = bonusPeriodData?.value || 15;
@@ -124,7 +133,35 @@ export default function RoiPage() {
   const progress = bonusCountdown?.progress || 0;
   const timeLeftMs = bonusCountdown?.timeLeftMs || 0;
 
-  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || countdownLoading || referralLoading || walletLoading
+  // Auto-refresh data when page loads and periodically
+  useEffect(() => {
+    // Initial refresh when component mounts
+    const refreshData = async () => {
+      await Promise.all([
+        refetchInvestments(),
+        refetchStats(),
+        refetchWallet()
+      ]);
+    };
+    
+    refreshData();
+    
+    // Set up periodic refresh every 30 seconds
+    const interval = setInterval(refreshData, 30000);
+    
+    return () => clearInterval(interval);
+  }, [refetchInvestments, refetchStats, refetchWallet]);
+
+  // Manual refresh function
+  const handleRefreshData = async () => {
+    await Promise.all([
+      refetchInvestments(),
+      refetchStats(),
+      refetchWallet()
+    ]);
+  };
+
+  const isLoading = investmentsLoading || statsLoading || bonusPeriodLoading || countdownLoading || referralLoading || walletLoading || roiTransactionsLoading
 
   // ROI calculations
   const totalRoi = investmentStats?.totalEarnings || 0
@@ -214,24 +251,13 @@ export default function RoiPage() {
   // Calculate available bonus (only from active investments for withdrawal)
   const availableBonus = totalLockedBonus;
 
-  // ROI transactions from payouts
-  const roiTransactions = investments?.flatMap(investment => 
-    investment.payoutHistory?.map(payout => ({
-      id: payout.id,
-      plan: getPlanData(investment)?.name || 'Investment Plan',
-      amount: formatCurrency(payout.amount, payout.currency),
-      date: formatDate(payout.createdAt),
-      type: payout.type,
-      status: payout.status,
-      description: payout.description,
-      reference: payout.reference
-    })) || []
-  ) || [];
+  // ROI transactions from API
+  const roiTransactions = roiTransactionsData?.transactions || []
 
   // Calculate pagination
   const filteredTransactions = roiTransactions.filter(transaction => {
-    const matchesSearch = transaction.plan.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.amount.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         transaction.amount.toString().includes(searchQuery)
     const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter
     const matchesType = typeFilter === 'all' || transaction.type === typeFilter
     return matchesSearch && matchesStatus && matchesType
@@ -259,18 +285,32 @@ export default function RoiPage() {
 
   const handleWithdrawDailyRoi = async () => {
     try {
+      setIsWithdrawingDailyRoi(true);
       const response = await api.post(endpoints.investments.withdrawDailyRoi);
       const result = response.data;
       
       if (result.success) {
-        toast.success(result.message);
-        // Refresh the page to update the data
-        window.location.reload();
+        toast.success(`✅ ${result.message}`);
+        setDailyRoiWithdrawn(true);
+        
+        // Refresh all data to show updated values
+        await Promise.all([
+          refetchInvestments(),
+          refetchStats(),
+          refetchWallet()
+        ]);
+        
+        // Show success message for a few seconds, then reset
+        setTimeout(() => {
+          setDailyRoiWithdrawn(false);
+        }, 5000);
       } else {
         toast.error(result.message);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to withdraw daily ROI');
+    } finally {
+      setIsWithdrawingDailyRoi(false);
     }
   };
 
@@ -321,6 +361,15 @@ export default function RoiPage() {
           <p className="text-base sm:text-lg text-gray-500 mt-1">Track your investment returns</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <Button
+            onClick={handleRefreshData}
+            variant="outline"
+            size="sm"
+            className="bg-white/50 backdrop-blur-sm hover:bg-white/80 transition-all duration-300"
+          >
+            <ArrowPathIcon className="h-4 w-4 mr-2" />
+            Refresh Data
+          </Button>
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -443,18 +492,25 @@ export default function RoiPage() {
                     </div>
                     <Button
                       onClick={handleWithdrawDailyRoi}
-                      disabled={totalRoiNaira <= 0 && totalRoiUsdt <= 0}
+                      disabled={dailyRoiNaira <= 0 && dailyRoiUsdt <= 0 || isWithdrawingDailyRoi}
                       className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Withdraw Daily ROI
+                      {isWithdrawingDailyRoi ? 'Withdrawing...' : 'Withdraw Daily ROI'}
                     </Button>
                     <p className="text-xs text-gray-500 text-center">
                       Withdraws accumulated daily ROI to available balance
                     </p>
-                    {totalRoiNaira <= 0 && totalRoiUsdt <= 0 && (
+                    {dailyRoiNaira <= 0 && dailyRoiUsdt <= 0 && (
                       <p className="text-xs text-gray-500 text-center mt-1">
                         No daily ROI available to withdraw. ROI accumulates over time.
                       </p>
+                    )}
+                    {dailyRoiWithdrawn && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
+                        <p className="text-sm text-green-700 font-medium">
+                          ✅ Daily ROI withdrawn successfully! Check your wallet balance.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -694,9 +750,9 @@ export default function RoiPage() {
                           {getTypeIcon(transaction.type)}
                         </div>
                         <div>
-                          <p className="font-semibold text-base sm:text-lg">{transaction.plan}</p>
+                          <p className="font-semibold text-base sm:text-lg">{transaction.description}</p>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm text-gray-500">{transaction.date}</p>
+                            <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
                             <span className="text-sm text-gray-500 hidden sm:inline">•</span>
                             <p className="text-sm text-gray-500">{transaction.type}</p>
                           </div>
@@ -822,9 +878,9 @@ export default function RoiPage() {
                             {getTypeIcon(transaction.type)}
                           </div>
                           <div>
-                            <p className="font-semibold text-base sm:text-lg">{transaction.plan}</p>
+                            <p className="font-semibold text-base sm:text-lg">{transaction.description}</p>
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm text-gray-500">{transaction.date}</p>
+                              <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
                               <span className="text-sm text-gray-500 hidden sm:inline">•</span>
                               <p className="text-sm text-gray-500">{transaction.type}</p>
                             </div>
