@@ -167,6 +167,51 @@ export default function InvestmentsPage() {
 
   const isLoading = plansLoading || investmentsLoading;
 
+  // Function to update countdowns for all investments
+  const updateCountdowns = () => {
+    if (!myInvestments) return;
+    
+    const newCountdowns: Record<string, string> = {};
+    
+    myInvestments.forEach((investment) => {
+      const now = new Date();
+      
+      // Use nextRoiUpdate if available, otherwise calculate from start date
+      let nextRoiUpdate = investment.nextRoiUpdate;
+      if (!nextRoiUpdate && investment.startDate) {
+        const startDate = new Date(investment.startDate);
+        // ROI updates happen every hour, so add 1 hour to start date
+        nextRoiUpdate = new Date(startDate.getTime() + 60 * 60 * 1000).toISOString();
+      }
+      
+      if (!nextRoiUpdate) {
+        newCountdowns[investment.id] = 'N/A';
+      } else {
+        const next = new Date(nextRoiUpdate);
+        const diff = Math.max(0, next.getTime() - now.getTime());
+        
+        if (diff === 0) {
+          newCountdowns[investment.id] = 'Due now';
+        } else {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          
+          if (hours > 0) {
+            newCountdowns[investment.id] = `${hours}h ${minutes}m`;
+          } else if (minutes > 0) {
+            newCountdowns[investment.id] = `${minutes}m ${seconds}s`;
+          } else {
+            newCountdowns[investment.id] = `${seconds}s`;
+          }
+        }
+      }
+    });
+    
+    setNextPayoutCountdowns(newCountdowns);
+  };
+
+  // Auto-refresh investments data for real-time updates
   useEffect(() => {
     if (!myInvestments) return;
     

@@ -135,22 +135,30 @@ export default function RoiPage() {
 
   // Auto-refresh data when page loads and periodically
   useEffect(() => {
-    // Initial refresh when component mounts
-    const refreshData = async () => {
-      await Promise.all([
-        refetchInvestments(),
-        refetchStats(),
-        refetchWallet()
-      ]);
-    };
+    // Initial refetch
+    refetchInvestments();
+    refetchStats();
+    refetchWallet();
     
-    refreshData();
+    // Set up periodic refresh every 30 seconds for real-time updates
+    const refreshInterval = setInterval(() => {
+      refetchInvestments();
+      refetchStats();
+      refetchWallet();
+    }, 30000); // 30 seconds
     
-    // Set up periodic refresh every 30 seconds
-    const interval = setInterval(refreshData, 30000);
-    
-    return () => clearInterval(interval);
+    return () => clearInterval(refreshInterval);
   }, [refetchInvestments, refetchStats, refetchWallet]);
+  
+  // Additional effect for ROI transactions refresh
+  useEffect(() => {
+    const roiRefreshInterval = setInterval(() => {
+      // Force refetch ROI transactions for real-time updates
+      queryClient.invalidateQueries({ queryKey: ['transactions', 'roi'] });
+    }, 15000); // 15 seconds for ROI transactions
+    
+    return () => clearInterval(roiRefreshInterval);
+  }, [queryClient]);
 
   // Manual refresh function
   const handleRefreshData = async () => {

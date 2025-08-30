@@ -49,6 +49,16 @@ interface PlatformSettings {
   usdtInvestmentEnabled?: boolean;
 }
 
+interface TestingModeSettings {
+  enabled: boolean;
+  hourlyUpdateInterval: number;
+  dailyCycleInterval: number;
+  monthlyCycleInterval: number;
+  overdueThreshold: number;
+  minUpdateInterval: number;
+  countdownUpdateThreshold: number;
+}
+
 interface WithdrawalPolicy {
   roiOnly: boolean;
 }
@@ -77,10 +87,23 @@ export default function SettingsComponent() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [originalSettings, setOriginalSettings] = useState<PlatformSettings | null>(null);
+  
+  // Testing Mode State
+  const [testingModeSettings, setTestingModeSettings] = useState<TestingModeSettings>({
+    enabled: false,
+    hourlyUpdateInterval: 60 * 60 * 1000,
+    dailyCycleInterval: 24 * 60 * 60 * 1000,
+    monthlyCycleInterval: 30 * 24 * 60 * 60 * 1000,
+    overdueThreshold: 60 * 60 * 1000,
+    minUpdateInterval: 30 * 1000,
+    countdownUpdateThreshold: 60 * 1000,
+  });
+  const [testingModeLoading, setTestingModeLoading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
     fetchWithdrawalPolicy();
+    fetchTestingModeSettings();
   }, []);
 
   // Track changes
@@ -161,6 +184,28 @@ export default function SettingsComponent() {
       console.error('Error fetching withdrawal policy:', error);
     } finally {
       setPolicyLoading(false);
+    }
+  };
+
+  const fetchTestingModeSettings = async () => {
+    try {
+      setTestingModeLoading(true);
+      const response = await api.get('/admin/settings/roi-testing-mode');
+      setTestingModeSettings(response.data);
+    } catch (error) {
+      console.error('Failed to fetch testing mode settings:', error);
+      // Use default production settings if fetch fails
+      setTestingModeSettings({
+        enabled: false,
+        hourlyUpdateInterval: 60 * 60 * 1000,
+        dailyCycleInterval: 24 * 60 * 60 * 1000,
+        monthlyCycleInterval: 30 * 24 * 60 * 60 * 1000,
+        overdueThreshold: 60 * 60 * 1000,
+        minUpdateInterval: 30 * 1000,
+        countdownUpdateThreshold: 60 * 1000,
+      });
+    } finally {
+      setTestingModeLoading(false);
     }
   };
 
@@ -743,6 +788,227 @@ export default function SettingsComponent() {
                   checked={!!settings.usdtInvestmentEnabled}
                   onCheckedChange={(checked) => handleSettingChange('usdtInvestmentEnabled', checked)}
                 />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ROI Testing Mode */}
+        <Card className="lg:col-span-2 mb-6">
+          <CardHeader className="p-6">
+            <CardTitle className="flex items-center space-x-2">
+              <Cog6ToothIcon className="h-5 w-5" />
+              <span>ROI Testing Mode</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Enable Testing Mode</Label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Accelerates ROI timings for testing: 60s hourly, 60m daily, 3h monthly
+                  </p>
+                  {testingModeLoading && (
+                    <p className="text-xs text-blue-500 mt-1">🔄 Updating...</p>
+                  )}
+                  <div className="text-xs text-gray-600 mt-1">
+                    <span className={`font-medium ${testingModeSettings.enabled ? 'text-green-600' : 'text-blue-600'}`}>
+                      Current Status: {testingModeSettings.enabled ? 'Testing Mode' : 'Production Mode'}
+                    </span>
+                    <div className="mt-1">
+                      {testingModeSettings.enabled ? (
+                        <>
+                          <div className="text-green-600">Hourly: {testingModeSettings.hourlyUpdateInterval / 1000}s</div>
+                          <div className="text-green-600">Daily: {testingModeSettings.dailyCycleInterval / 60000}m</div>
+                          <div className="text-green-600">Monthly: {testingModeSettings.monthlyCycleInterval / 3600000}h</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-blue-600">Hourly: {Math.round(testingModeSettings.hourlyUpdateInterval / (60 * 60 * 1000) * 10) / 10}hr</div>
+                          <div className="text-blue-600">Daily: {Math.round(testingModeSettings.dailyCycleInterval / (24 * 60 * 60 * 1000) * 10) / 10}hrs</div>
+                          <div className="text-blue-600">Monthly: {Math.round(testingModeSettings.monthlyCycleInterval / (30 * 24 * 60 * 60 * 1000) * 10) / 10} days</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={testingModeSettings.enabled}
+                  disabled={testingModeLoading}
+                  onCheckedChange={async (checked) => {
+                    try {
+                      setTestingModeLoading(true);
+                      if (checked) {
+                        await api.post('/admin/settings/roi-testing-mode/enable');
+                        toast.success('Testing mode enabled successfully');
+                      } else {
+                        await api.post('/admin/settings/roi-testing-mode/disable');
+                        toast.success('Testing mode disabled successfully');
+                      }
+                      // Refresh the testing mode settings instead of reloading the page
+                      await fetchTestingModeSettings();
+                    } catch (error: any) {
+                      toast.error(error.response?.data?.message || 'Failed to update testing mode');
+                      // Revert the switch if the API call failed
+                      setTestingModeSettings(prev => ({ ...prev, enabled: !checked }));
+                    } finally {
+                      setTestingModeLoading(false);
+                    }
+                  }}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setTestingModeLoading(true);
+                      await api.post('/admin/settings/roi-testing-mode/enable');
+                      toast.success('Testing mode enabled successfully');
+                      await fetchTestingModeSettings();
+                    } catch (error: any) {
+                      toast.error(error.response?.data?.message || 'Failed to enable testing mode');
+                    } finally {
+                      setTestingModeLoading(false);
+                    }
+                  }}
+                  disabled={testingModeLoading || testingModeSettings.enabled}
+                  className="w-full"
+                >
+                  Enable Testing Mode
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setTestingModeLoading(true);
+                      await api.post('/admin/settings/roi-testing-mode/disable');
+                      toast.success('Testing mode disabled successfully');
+                      await fetchTestingModeSettings();
+                    } catch (error: any) {
+                      toast.error(error.response?.data?.message || 'Failed to disable testing mode');
+                    } finally {
+                      setTestingModeLoading(false);
+                    }
+                  }}
+                  disabled={testingModeLoading || !testingModeSettings.enabled}
+                  className="w-full"
+                >
+                  Disable Testing Mode
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setTestingModeLoading(true);
+                      await api.post('/admin/settings/roi-testing-mode/toggle');
+                      toast.success('Testing mode toggled successfully');
+                      await fetchTestingModeSettings();
+                    } catch (error: any) {
+                      toast.error(error.response?.data?.message || 'Failed to toggle testing mode');
+                    } finally {
+                      setTestingModeLoading(false);
+                    }
+                  }}
+                  disabled={testingModeLoading}
+                  className="w-full"
+                >
+                  Toggle Mode
+                </Button>
+              </div>
+              
+              {/* Current Status Display */}
+              <div className="pt-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                <h4 className="text-sm font-medium text-gray-200 mb-3">Current Configuration</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-gray-400 mb-2">Mode Status</div>
+                    <div className={`text-sm font-medium ${testingModeSettings.enabled ? 'text-green-400' : 'text-blue-400'}`}>
+                      {testingModeSettings.enabled ? '🟢 Testing Mode' : '🔵 Production Mode'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 mb-2">Timing Intervals</div>
+                    <div className="text-xs space-y-1">
+                      {testingModeSettings.enabled ? (
+                        <>
+                          <div className="text-green-400">⏰ Hourly: {testingModeSettings.hourlyUpdateInterval / 1000}s</div>
+                          <div className="text-green-400">⏰ Daily: {testingModeSettings.dailyCycleInterval / 60000}m</div>
+                          <div className="text-green-400">⏰ Monthly: {testingModeSettings.monthlyCycleInterval / 3600000}h</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-blue-400">⏰ Hourly: {Math.round(testingModeSettings.hourlyUpdateInterval / (60 * 60 * 1000) * 10) / 10}hr</div>
+                          <div className="text-blue-400">⏰ Daily: {Math.round(testingModeSettings.dailyCycleInterval / (24 * 60 * 60 * 1000) * 10) / 10}hrs</div>
+                          <div className="text-blue-400">⏰ Monthly: {Math.round(testingModeSettings.monthlyCycleInterval / (30 * 24 * 60 * 60 * 1000) * 10) / 10} days</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  <div className="text-xs text-gray-400 mb-2">Additional Settings</div>
+                  <div className="text-xs space-y-1">
+                    <div className="text-gray-300">Overdue Threshold: {testingModeSettings.overdueThreshold / 1000}s</div>
+                    <div className="text-gray-300">Min Update Interval: {testingModeSettings.minUpdateInterval / 1000}s</div>
+                    <div className="text-gray-300">Countdown Threshold: {testingModeSettings.countdownUpdateThreshold / 1000}s</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      setTestingModeLoading(true);
+                      await fetchTestingModeSettings();
+                      const mode = testingModeSettings.enabled ? 'Testing' : 'Production';
+                      toast.success(`Current mode: ${mode}`);
+                      
+                      // Show detailed timing information
+                      const hourly = testingModeSettings.hourlyUpdateInterval / 1000;
+                      const daily = testingModeSettings.dailyCycleInterval / 60000;
+                      const monthly = testingModeSettings.monthlyCycleInterval / 3600000;
+                      
+                      console.log('Testing mode settings:', {
+                        mode,
+                        hourly: `${hourly}s`,
+                        daily: `${daily}m`,
+                        monthly: `${monthly}h`
+                      });
+                    } catch (error: any) {
+                      toast.error('Failed to get testing mode status');
+                    } finally {
+                      setTestingModeLoading(false);
+                    }
+                  }}
+                  disabled={testingModeLoading}
+                  className="w-full"
+                >
+                  Refresh Status
+                </Button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Refresh the current testing mode status and timings. Testing mode accelerates ROI processing for development and testing purposes.
+                </p>
+                
+                {/* Debug Information */}
+                <div className="pt-4 p-3 bg-gray-900 rounded border border-gray-700">
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-gray-400 hover:text-gray-300">
+                      🔍 Debug Information
+                    </summary>
+                    <div className="mt-2 space-y-1 text-gray-500">
+                      <div>Raw Settings: {JSON.stringify(testingModeSettings, null, 2)}</div>
+                      <div>Loading State: {testingModeSettings.enabled ? 'true' : 'false'}</div>
+                      <div>Toggle State: {testingModeSettings.enabled ? 'ON' : 'OFF'}</div>
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
           </CardContent>
