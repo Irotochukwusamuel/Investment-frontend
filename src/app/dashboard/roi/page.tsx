@@ -54,7 +54,7 @@ import { useWithdrawBonus } from '@/lib/hooks/useBonus'
 import { useBonusWithdrawalPeriod, useBonusCountdown, useWalletBalance, useRoiTransactions } from '@/lib/hooks/useWallet'
 import { useReferralStats } from '@/lib/hooks/useReferrals'
 import { toast } from 'react-hot-toast'
-import { api, endpoints } from '@/lib/api'
+// Removed manual daily ROI withdrawal API usage
 import { useQueryClient } from '@tanstack/react-query'
 
 interface RoiTransaction {
@@ -118,8 +118,7 @@ export default function RoiPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [bonusWithdrawn, setBonusWithdrawn] = useState(false);
-  const [isWithdrawingDailyRoi, setIsWithdrawingDailyRoi] = useState(false);
-  const [dailyRoiWithdrawn, setDailyRoiWithdrawn] = useState(false);
+  // Removed manual daily ROI withdrawal state
   const queryClient = useQueryClient()
 
   // Extract bonus period data with defaults
@@ -291,36 +290,7 @@ export default function RoiPage() {
     }
   };
 
-  const handleWithdrawDailyRoi = async () => {
-    try {
-      setIsWithdrawingDailyRoi(true);
-      const response = await api.post(endpoints.investments.withdrawDailyRoi);
-      const result = response.data;
-      
-      if (result.success) {
-        toast.success(`✅ ${result.message}`);
-        setDailyRoiWithdrawn(true);
-        
-        // Refresh all data to show updated values
-        await Promise.all([
-          refetchInvestments(),
-          refetchStats(),
-          refetchWallet()
-        ]);
-        
-        // Show success message for a few seconds, then reset
-        setTimeout(() => {
-          setDailyRoiWithdrawn(false);
-        }, 5000);
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to withdraw daily ROI');
-    } finally {
-      setIsWithdrawingDailyRoi(false);
-    }
-  };
+  // Removed manual daily ROI withdrawal handler
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber)
@@ -498,28 +468,7 @@ export default function RoiPage() {
                       <span className="text-gray-500">Daily Growth</span>
                       <span className="text-green-600 font-medium">+{dailyGrowth.toFixed(2)}%</span>
                     </div>
-                    <Button
-                      onClick={handleWithdrawDailyRoi}
-                      disabled={dailyRoiNaira <= 0 && dailyRoiUsdt <= 0 || isWithdrawingDailyRoi}
-                      className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isWithdrawingDailyRoi ? 'Withdrawing...' : 'Withdraw Daily ROI'}
-                    </Button>
-                    <p className="text-xs text-gray-500 text-center">
-                      Withdraws accumulated daily ROI to available balance
-                    </p>
-                    {dailyRoiNaira <= 0 && dailyRoiUsdt <= 0 && (
-                      <p className="text-xs text-gray-500 text-center mt-1">
-                        No daily ROI available to withdraw. ROI accumulates over time.
-                      </p>
-                    )}
-                    {dailyRoiWithdrawn && (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
-                        <p className="text-sm text-green-700 font-medium">
-                          ✅ Daily ROI withdrawn successfully! Check your wallet balance.
-                        </p>
-                      </div>
-                    )}
+                    {/* Manual Daily ROI withdrawal removed */}
                   </div>
                 </CardContent>
               </Card>
