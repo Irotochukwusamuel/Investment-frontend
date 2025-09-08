@@ -62,7 +62,7 @@ interface RoiTransaction {
   plan: string
   amount: string
   date: string
-  status: 'completed' | 'pending'
+  status: 'completed' | 'success' | 'pending'
   type: 'daily' | 'weekly' | 'monthly'
 }
 
@@ -88,6 +88,30 @@ const formatDate = (dateString: string) => {
     minute: '2-digit',
     hour12: true,
   });
+};
+
+// Precise timestamp (includes seconds) and prefers processedAt
+const getTxDate = (tx: any): string => tx?.processedAt || tx?.createdAt;
+const formatDatePrecise = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+};
+
+// Ultra-precise timestamp (adds milliseconds and timezone abbreviation)
+const formatDateUltra = (dateString: string) => {
+  const d = new Date(dateString);
+  const base = formatDatePrecise(dateString);
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  const tz = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find(p => p.type === 'timeZoneName')?.value || '';
+  return `${base}.${ms} ${tz}`.trim();
 };
 
 // Helper function to get plan data safely
@@ -259,13 +283,110 @@ export default function RoiPage() {
   const availableBonus = totalLockedBonus;
 
   // ROI transactions from API
-  const roiTransactions = roiTransactionsData?.transactions || []
+  const roiTransactionsRaw = roiTransactionsData?.transactions || []
+
+  // De-duplicate ROI transactions defensively (backend already tries, but the UI should be robust)
+  const getTxDate = (tx: any): string => tx?.processedAt || tx?.createdAt;
+  const getUtcDayKey = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  };
+  const buildTxKey = (tx: any) => {
+    if (tx?.reference) return `ref:${tx.reference}`;
+    const d = new Date(getTxDate(tx));
+    const minuteBucket = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}-${d.getUTCMinutes()}`;
+    return `cmp:${tx.userId}-${tx.investmentId}-${tx.amount}-${tx.currency}-${minuteBucket}`;
+  };
+  const amountsRoughlyEqual = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.min(Math.abs(a), Math.abs(b)) * 0.01);
+  const dedupeTransactions = (txs: any[]) => {
+    // First pass: collapse by reference/minute bucket
+    const seen = new Set<string>();
+    const prelim: any[] = [];
+    for (const tx of txs) {
+      const key = buildTxKey(tx);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      prelim.push(tx);
+    }
+
+    // Second pass: collapse per investment per UTC day (24-hour cycle)
+    const latestByDay = new Map<string, any>();
+    for (const tx of prelim) {
+      const dayKey = `${tx.investmentId || 'unknown'}-${tx.currency || 'naira'}-${getUtcDayKey(getTxDate(tx))}`;
+      const existing = latestByDay.get(dayKey);
+      if (!existing) {
+        latestByDay.set(dayKey, tx);
+        continue;
+      }
+      // If the amounts are roughly equal (same cycle payment), keep the latest
+      const sameAmount = amountsRoughlyEqual(Number(existing.amount || 0), Number(tx.amount || 0));
+      const existingTime = new Date(getTxDate(existing)).getTime();
+      const currentTime = new Date(getTxDate(tx)).getTime();
+      if (sameAmount && currentTime > existingTime) {
+        latestByDay.set(dayKey, tx);
+      } else if (!sameAmount) {
+        // Different amounts in same day (unlikely). Keep both by adding a suffix key
+        const altKey = `${dayKey}-amt-${Number(tx.amount || 0)}`;
+        if (!latestByDay.has(altKey)) latestByDay.set(altKey, tx);
+      }
+    }
+    return Array.from(latestByDay.values()).sort((a, b) => new Date(getTxDate(b)).getTime() - new Date(getTxDate(a)).getTime());
+  };
+  const roiTransactions = dedupeTransactions(roiTransactionsRaw);
+
+  console.log({roiTransactionsData})
+
+  // Helper to generate a friendly transaction title using plan name if available
+  const getTransactionTitle = (transaction: any) => {
+    // If backend populated planId with name, use it
+    const populatedPlanName = typeof transaction?.planId === 'object' && transaction?.planId?.name
+      ? transaction.planId.name
+      : undefined;
+
+    if (populatedPlanName) {
+      return `${transaction.type === 'roi' ? 'ROI' : transaction.type} payment for ${populatedPlanName}`;
+    }
+
+    // Otherwise try to find the investment from current investments list
+    const inv = investments?.find((i) => (i as any).id === transaction.investmentId || (i as any)._id === transaction.investmentId);
+    const invPlanName = inv ? (getPlanData(inv as any)?.name || 'Investment') : undefined;
+    if (invPlanName) {
+      return `${transaction.type === 'roi' ? 'ROI' : transaction.type} payment for ${invPlanName}`;
+    }
+
+    // Fallback to original description
+    return transaction.description;
+  };
+
+  // Extra metadata to be more specific in history
+  const getTransactionMeta = (transaction: any) => {
+    const inv = investments?.find((i) => (i as any).id === transaction.investmentId || (i as any)._id === transaction.investmentId);
+    const planName = typeof transaction?.planId === 'object' && transaction?.planId?.name
+      ? transaction.planId.name
+      : inv
+      ? getPlanData(inv as any)?.name
+      : undefined;
+    const baseAmount = inv?.amount;
+    const dailyPercent = inv?.dailyRoi;
+    const currency = inv?.currency || transaction.currency || 'naira';
+    const cycleLabel = /24[- ]?Hour/i.test(transaction.description || '') ? '24‑hour cycle' : 'ROI';
+    const shortRef = (transaction.reference || '').slice(0, 12);
+    return { planName, baseAmount, dailyPercent, currency, cycleLabel, shortRef };
+  };
 
   // Calculate pagination
   const filteredTransactions = roiTransactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          transaction.amount.toString().includes(searchQuery)
-    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter
+    
+    // Handle status filtering - treat 'success' and 'completed' as the same
+    let matchesStatus = statusFilter === 'all'
+    if (statusFilter === 'completed') {
+      matchesStatus = transaction.status === 'completed' || transaction.status === 'success'
+    } else if (statusFilter !== 'all') {
+      matchesStatus = transaction.status === statusFilter
+    }
+    
     const matchesType = typeFilter === 'all' || transaction.type === typeFilter
     return matchesSearch && matchesStatus && matchesType
   })
@@ -299,6 +420,7 @@ export default function RoiPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
+      case 'success':
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
@@ -707,23 +829,37 @@ export default function RoiPage() {
                           {getTypeIcon(transaction.type)}
                         </div>
                         <div>
-                          <p className="font-semibold text-base sm:text-lg">{transaction.description}</p>
+                          <p className="font-semibold text-base sm:text-lg">{getTransactionTitle(transaction)}</p>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                            <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                             <span className="text-sm text-gray-500 hidden sm:inline">•</span>
                             <p className="text-sm text-gray-500">{transaction.type}</p>
+                            {(() => { const m = getTransactionMeta(transaction); return (
+                              <>
+                                {m.planName && <><span className="text-sm text-gray-500 hidden sm:inline">•</span><span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{m.planName}</span></>}
+                                {m.baseAmount !== undefined && <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Base: {formatCurrency(m.baseAmount as number, m.currency === 'naira' ? 'naira' : 'usdt')}</span>}
+                                {m.dailyPercent !== undefined && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{m.dailyPercent}%/day</span>}
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{m.cycleLabel}</span>
+                                {m.shortRef && <span className="text-xs text-gray-400">ref: {m.shortRef}…</span>}
+                              </>
+                            ); })()}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-4">
-                        <p className="font-semibold text-base sm:text-lg">{transaction.amount}</p>
+                        <p className="font-semibold text-base sm:text-lg">{
+                          formatCurrency(
+                            Number(transaction.amount) || 0,
+                            (transaction.currency === 'naira' ? 'naira' : 'usdt')
+                          )
+                        }</p>
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
                             getStatusColor(transaction.status)
                           )}
                         >
-                          {transaction.status}
+                          {transaction.status === 'success' ? 'completed' : transaction.status}
                         </span>
                       </div>
                     </motion.div>
@@ -769,6 +905,7 @@ export default function RoiPage() {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="success">Success</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                     </SelectContent>
                   </Select>
@@ -835,23 +972,37 @@ export default function RoiPage() {
                             {getTypeIcon(transaction.type)}
                           </div>
                           <div>
-                            <p className="font-semibold text-base sm:text-lg">{transaction.description}</p>
+                            <p className="font-semibold text-base sm:text-lg">{getTransactionTitle(transaction)}</p>
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                              <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                               <span className="text-sm text-gray-500 hidden sm:inline">•</span>
                               <p className="text-sm text-gray-500">{transaction.type}</p>
+                              {(() => { const m = getTransactionMeta(transaction); return (
+                                <>
+                                  {m.planName && <><span className="text-sm text-gray-500 hidden sm:inline">•</span><span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{m.planName}</span></>}
+                                  {m.baseAmount !== undefined && <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Base: {formatCurrency(m.baseAmount as number, m.currency === 'naira' ? 'naira' : 'usdt')}</span>}
+                                  {m.dailyPercent !== undefined && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{m.dailyPercent}%/day</span>}
+                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{m.cycleLabel}</span>
+                                  {m.shortRef && <span className="text-xs text-gray-400">ref: {m.shortRef}…</span>}
+                                </>
+                              ); })()}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-4">
-                          <p className="font-semibold text-base sm:text-lg">{transaction.amount}</p>
+                          <p className="font-semibold text-base sm:text-lg">{
+                            formatCurrency(
+                              Number(transaction.amount) || 0,
+                              (transaction.currency === 'naira' ? 'naira' : 'usdt')
+                            )
+                          }</p>
                           <span
                             className={cn(
                               "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
                               getStatusColor(transaction.status)
                             )}
                           >
-                            {transaction.status}
+                            {transaction.status === 'success' ? 'completed' : transaction.status}
                           </span>
                         </div>
                       </motion.div>

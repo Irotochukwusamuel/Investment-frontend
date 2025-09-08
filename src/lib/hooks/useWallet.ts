@@ -40,7 +40,7 @@ export interface Transaction {
   type: 'deposit' | 'withdrawal' | 'investment' | 'roi' | 'bonus' | 'referral' | 'transfer' | 'fee' | 'refund';
   amount: number;
   currency: 'naira' | 'usdt';
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'processing' | 'completed' | 'success' | 'failed' | 'cancelled';
   description: string;
   reference: string;
   externalReference?: string;
@@ -268,45 +268,40 @@ export const useTransfer = () => {
 };
 
 export const useTransactionHistory = (filters?: {
-  page?: number;
-  limit?: number;
-  type?: string;
-  status?: string;
-  currency?: string;
-  startDate?: string;
-  endDate?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+	page?: number;
+	limit?: number;
+	type?: string;
+	status?: string;
+	currency?: string;
+	startDate?: string;
+	endDate?: string;
+	sortBy?: string;
+	sortOrder?: 'asc' | 'desc';
 }) => {
-  return useQuery({
-    queryKey: ['transactions', 'my', filters],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filters?.page) params.append('page', filters.page.toString());
-      if (filters?.limit) params.append('limit', filters.limit.toString());
-      if (filters?.type) params.append('type', filters.type);
-      if (filters?.status) params.append('status', filters.status);
-      if (filters?.currency) params.append('currency', filters.currency);
-      if (filters?.startDate) params.append('startDate', filters.startDate);
-      if (filters?.endDate) params.append('endDate', filters.endDate);
-      if (filters?.sortBy) params.append('sortBy', filters.sortBy);
-      if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
-      
-      const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
-     
-      const transactions = handleApiResponse<Transaction[]>(response);
-      
-      return {
-        transactions,
-        pagination: {
-          page: filters?.page || 1,
-          limit: filters?.limit || 50,
-          total: transactions.length,
-          pages: 1,
-        },
-        };
-    },
-  });
+	const { data: user } = useUser();
+	return useQuery({
+		queryKey: ['transactions', 'my', user?.id, filters?.type || 'all', filters?.status || 'all', filters?.currency || 'all'],
+		queryFn: async () => {
+			const params = new URLSearchParams();
+			// Only include supported filters for /transactions/my
+			if (filters?.type) params.append('type', filters.type);
+			if (filters?.status) params.append('status', filters.status);
+			if (filters?.currency) params.append('currency', filters.currency);
+			
+			const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
+			const transactions = handleApiResponse<Transaction[]>(response);
+			return {
+				transactions,
+				pagination: {
+					page: 1,
+					limit: transactions.length,
+					total: transactions.length,
+					pages: 1,
+				},
+			};
+		},
+		enabled: !!user?.id,
+	});
 };
 
 export const useWalletStats = () => {
@@ -470,48 +465,48 @@ export const useUserWithdrawals = () => {
 
 // ROI transactions hook - gets ROI transaction history
 export const useRoiTransactions = (filters?: {
-  page?: number;
-  limit?: number;
-  currency?: string;
-  startDate?: string;
-  endDate?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+	page?: number;
+	limit?: number;
+	currency?: string;
+	startDate?: string;
+	endDate?: string;
+	sortBy?: string;
+	sortOrder?: 'asc' | 'desc';
+	status?: string;
 }) => {
-  return useQuery({
-    queryKey: ['transactions', 'roi', filters],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filters?.page) params.append('page', filters.page.toString());
-      if (filters?.limit) params.append('limit', filters.limit.toString());
-      if (filters?.currency) params.append('currency', filters.currency);
-      if (filters?.startDate) params.append('startDate', filters.startDate);
-      if (filters?.endDate) params.append('endDate', filters.endDate);
-      if (filters?.sortBy) params.append('sortBy', filters.sortBy);
-      if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
-      
-      // Add type filter for ROI transactions
-      params.append('type', 'roi');
-      
-      const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
-     
-      const transactions = handleApiResponse<Transaction[]>(response);
-      
-      return {
-        transactions,
-        pagination: {
-          page: filters?.page || 1,
-          limit: filters?.limit || 50,
-          total: transactions.length,
-          pages: 1,
-        },
-      };
-    },
-    staleTime: 0, // Always consider data stale - force refetch
-    gcTime: 1 * 60 * 1000, // 1 minute
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
-    refetchOnMount: true, // Always refetch on mount
-    refetchOnReconnect: true, // Refetch on reconnect
-    retry: 1, // Retry once on failure
-  });
+	const { data: user } = useUser();
+	return useQuery({
+		queryKey: ['transactions', 'roi', user?.id, filters],
+		queryFn: async () => {
+			const params = new URLSearchParams();
+			// Only include filters that the backend supports on /transactions/my
+			// Unsupported params (page, limit, sortBy, sortOrder, date ranges) would be
+			// treated as Mongo fields and accidentally filter out all results.
+			if (filters?.currency) params.append('currency', filters.currency);
+			if (filters?.status) params.append('status', filters.status);
+
+			// Force ROI type filter
+			params.append('type', 'roi');
+
+			const response = await api.get(`${endpoints.transactions.my}?${params.toString()}`);
+
+			const transactions = handleApiResponse<Transaction[]>(response);
+			return {
+				transactions,
+				pagination: {
+					page: 1,
+					limit: transactions.length,
+					total: transactions.length,
+					pages: 1,
+				},
+			};
+		},
+		staleTime: 0, // Always consider data stale - force refetch
+		gcTime: 1 * 60 * 1000, // 1 minute
+		refetchOnWindowFocus: true, // Refetch when user returns to tab
+		refetchOnMount: true, // Always refetch on mount
+		refetchOnReconnect: true, // Refetch on reconnect
+		retry: 1, // Retry once on failure
+		enabled: !!user?.id,
+	});
 }; 

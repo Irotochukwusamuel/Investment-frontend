@@ -129,8 +129,80 @@ export default function WalletPage() {
   const { data: usdtSettings, isLoading: usdtSettingsLoading } = useUsdtSettings();
 
   const isLoading = walletLoading || transactionsLoading || withdrawalsLoading || settingsLoading || platformSettingsLoading || usdtSettingsLoading
-  const transactions = transactionData?.transactions || []
+  const transactionsRaw = transactionData?.transactions || []
   const withdrawals = withdrawalData?.data || []
+
+  // Helpers: precise timestamps and friendly titles
+  const getTxDate = (tx: any): string => tx?.processedAt || tx?.createdAt
+  const formatDateUltra = (dateString: string) => {
+    const d = new Date(dateString);
+    const base = d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    const tz = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find(p => p.type === 'timeZoneName')?.value || '';
+    return `${base}.${ms} ${tz}`.trim();
+  };
+
+  const getFriendlyTitle = (tx: any) => {
+    if (tx.type === 'roi') return 'ROI payment';
+    if (tx.type === 'deposit') return 'Deposit';
+    if (tx.type === 'withdrawal') return 'Withdrawal';
+    if (tx.type === 'investment') return 'Investment';
+    if (tx.type?.startsWith('transfer')) return 'Transfer';
+    return tx.description || tx.type;
+  };
+
+  // De-duplication (reference/minute bucket + per-day collapse for ROI)
+  const getUtcDayKey = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  };
+  const buildTxKey = (tx: any) => {
+    if (tx?.reference) return `ref:${tx.reference}`;
+    const d = new Date(getTxDate(tx));
+    const minuteBucket = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}-${d.getUTCMinutes()}`;
+    return `cmp:${tx.userId}-${tx.type}-${tx.investmentId || ''}-${tx.amount}-${tx.currency}-${minuteBucket}`;
+  };
+  const amountsRoughlyEqual = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.min(Math.abs(a), Math.abs(b)) * 0.01);
+  const prelimSeen = new Set<string>();
+  const prelim = transactionsRaw.filter((tx: any) => {
+    const key = buildTxKey(tx);
+    if (prelimSeen.has(key)) return false;
+    prelimSeen.add(key);
+    return true;
+  });
+  const latestByGroup = new Map<string, any>();
+  for (const tx of prelim) {
+    if (tx.type !== 'roi') {
+      const key = `other:${tx.reference || buildTxKey(tx)}`;
+      const existing = latestByGroup.get(key);
+      if (!existing || new Date(getTxDate(tx)).getTime() > new Date(getTxDate(existing)).getTime()) {
+        latestByGroup.set(key, tx);
+      }
+      continue;
+    }
+    const dayKey = `roi:${tx.investmentId || 'unknown'}:${tx.currency || 'naira'}:${getUtcDayKey(getTxDate(tx))}`;
+    const existing = latestByGroup.get(dayKey);
+    if (!existing) {
+      latestByGroup.set(dayKey, tx);
+    } else {
+      const sameAmount = amountsRoughlyEqual(Number(existing.amount || 0), Number(tx.amount || 0));
+      if (sameAmount) {
+        if (new Date(getTxDate(tx)).getTime() > new Date(getTxDate(existing)).getTime()) latestByGroup.set(dayKey, tx);
+      } else {
+        const altKey = `${dayKey}:amt:${Number(tx.amount || 0)}`;
+        if (!latestByGroup.has(altKey)) latestByGroup.set(altKey, tx);
+      }
+    }
+  }
+  const transactions = Array.from(latestByGroup.values()).sort((a, b) => new Date(getTxDate(b)).getTime() - new Date(getTxDate(a)).getTime());
 
   // Calculate pending withdrawal amounts from withdrawal data directly
   const calculatePendingWithdrawals = (currency: string) => {
@@ -174,6 +246,25 @@ export default function WalletPage() {
   const indexOfFirstTransaction = indexOfLastTransaction - itemsPerPage
   const currentTransactions = transactions.slice(indexOfFirstTransaction, indexOfLastTransaction)
   const totalPages = Math.ceil(transactions.length / itemsPerPage)
+
+  // Separate pagination for withdrawals list
+  const [withdrawalPage, setWithdrawalPage] = useState(1)
+  const withdrawalsPerPage = 10
+  const indexOfLastWithdrawal = withdrawalPage * withdrawalsPerPage
+  const indexOfFirstWithdrawal = indexOfLastWithdrawal - withdrawalsPerPage
+  const filteredWithdrawals = withdrawals
+    .filter((w: any) => {
+      // Basic search by description/reference/currency
+      if (!searchQuery) return true;
+      return (
+        (w.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(w.amount || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (w.reference || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (w.currency || '').toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    });
+  const currentWithdrawals = filteredWithdrawals.slice(indexOfFirstWithdrawal, indexOfLastWithdrawal)
+  const totalWithdrawalPages = Math.ceil(filteredWithdrawals.length / withdrawalsPerPage)
 
   // Filter and sort transactions
   const filteredTransactions = transactions
@@ -576,7 +667,7 @@ export default function WalletPage() {
           <CardContent className="p-4 sm:p-6">
             <ScrollArea className="h-[300px] sm:h-[400px] pr-4">
               <div className="space-y-4">
-                {currentTransactions.length === 0 ? (
+                {currentWithdrawals.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <ArrowPathIcon className="h-12 w-12 text-gray-400 mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Transactions Yet</h3>
@@ -598,7 +689,7 @@ export default function WalletPage() {
                     </div>
                   </div>
                 ) : (
-                  currentTransactions.map((transaction) => (
+                  currentWithdrawals.map((transaction) => (
                     <motion.div
                       key={transaction.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -611,16 +702,16 @@ export default function WalletPage() {
                           {getTransactionIcon(transaction.type)}
                         </div>
                         <div>
-                          <p className="font-semibold capitalize">{transaction.description}</p>
+                          <p className="font-semibold capitalize">{getFriendlyTitle(transaction)}</p>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                            <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-4">
                         <div className="text-right">
                           <p className={cn("font-bold", transaction.amount > 0 ? 'text-green-500' : 'text-red-500')}>
-                            {transaction.amount > 0 ? '+' : ''}{Math.abs(transaction.amount).toFixed(2)}
+                            {transaction.amount > 0 ? '+' : ''}{formatAmount(Math.abs(Number(transaction.amount) || 0), (transaction.currency || 'NGN').toUpperCase())}
                           </p>
                         </div>
                         <span
@@ -747,7 +838,7 @@ export default function WalletPage() {
             {/* Transactions List */}
             <ScrollArea className="h-[50vh] sm:h-[60vh] pr-4">
               <div className="space-y-4">
-                {filteredTransactions.length === 0 ? (
+                {currentWithdrawals.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <ArrowPathIcon className="h-12 w-12 text-gray-400 mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Transactions Found</h3>
@@ -779,7 +870,7 @@ export default function WalletPage() {
                     )}
                   </div>
                 ) : (
-                  filteredTransactions.map((transaction: any) => (
+                  currentWithdrawals.map((transaction: any) => (
                     <motion.div
                       key={transaction.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -792,16 +883,16 @@ export default function WalletPage() {
                           {getTransactionIcon(transaction.type)}
                         </div>
                         <div>
-                          <p className="font-semibold capitalize">{transaction.description}</p>
+                          <p className="font-semibold capitalize">{getFriendlyTitle(transaction)}</p>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                            <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-4">
                         <div className="text-right">
                           <p className={cn("font-bold", transaction.amount > 0 ? 'text-green-500' : 'text-red-500')}>
-                            {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toFixed(2)}
+                            {transaction.amount > 0 ? '+' : ''}{formatAmount(Math.abs(Number(transaction.amount) || 0), (transaction.currency || 'NGN').toUpperCase())}
                           </p>
                         </div>
                         <span
@@ -822,7 +913,7 @@ export default function WalletPage() {
             {/* Summary */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
               <p className="text-sm text-gray-500 text-center sm:text-left">
-                Showing {filteredTransactions.length} transactions
+                Showing {currentWithdrawals.length} transactions
               </p>
               <Button
                 variant="outline"

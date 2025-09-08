@@ -36,8 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { useWalletBalance, useTransactionHistory, useUserWithdrawals } from '@/lib/hooks/useWallet'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { useWalletBalance, useUserWithdrawals } from '@/lib/hooks/useWallet'
+import { formatCurrency } from '@/lib/utils'
 
 export default function WithdrawalsPage() {
   const [showAllTransactions, setShowAllTransactions] = useState(false)
@@ -50,16 +50,9 @@ export default function WithdrawalsPage() {
 
   // Real API hooks
   const { data: walletBalance, isLoading: walletLoading } = useWalletBalance()
-  const { data: transactionData, isLoading: transactionsLoading } = useTransactionHistory({
-    type: 'withdrawal',
-    limit: 100,
-    sortBy: 'createdAt',
-    sortOrder: 'desc'
-  })
   const { data: withdrawalData, isLoading: withdrawalsLoading } = useUserWithdrawals()
 
-  const isLoading = walletLoading || transactionsLoading || withdrawalsLoading
-  const withdrawalTransactions = transactionData?.transactions || []
+  const isLoading = walletLoading || withdrawalsLoading
   const withdrawals = withdrawalData?.data || []
 
   // Calculate withdrawal statistics
@@ -157,6 +150,23 @@ export default function WithdrawalsPage() {
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber)
   }
+
+  const getTxDate = (tx: any): string => tx?.processedAt || tx?.createdAt
+  const formatDateUltra = (dateString: string) => {
+    const d = new Date(dateString);
+    const base = d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    const tz = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find(p => p.type === 'timeZoneName')?.value || '';
+    return `${base}.${ms} ${tz}`.trim();
+  };
 
   return (
     <div className="space-y-8">
@@ -419,7 +429,7 @@ export default function WithdrawalsPage() {
                         </div>
                         <div>
                           <p className="font-medium">{formatCurrency(withdrawal.amount, withdrawal.currency)}</p>
-                          <p className="text-sm text-gray-500">{formatDate(withdrawal.createdAt)}</p>
+                          <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(withdrawal))}</p>
                           <p className="text-xs text-gray-400">{getStatusDescription(withdrawal.status)}</p>
                         </div>
                       </div>
@@ -526,7 +536,7 @@ export default function WithdrawalsPage() {
                           <div>
                             <p className="font-semibold text-base sm:text-lg">{formatCurrency(withdrawal.amount, withdrawal.currency)}</p>
                             <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm text-gray-500">{formatDate(withdrawal.createdAt)}</p>
+                              <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(withdrawal))}</p>
                               <span className="text-sm text-gray-500 hidden sm:inline">•</span>
                               <p className="text-sm text-gray-500">{withdrawal.currency.toUpperCase()}</p>
                             </div>

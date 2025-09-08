@@ -69,6 +69,51 @@ export default function DashboardPage() {
     return `${amount} USDT`;
   };
 
+  // Precise timestamp helpers (prefer processedAt)
+  const getTxDate = (tx: any): string => tx?.processedAt || tx?.createdAt
+  const formatDateUltra = (dateString: string) => {
+    const d = new Date(dateString);
+    const base = d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    const tz = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(d).find(p => p.type === 'timeZoneName')?.value || '';
+    return `${base}.${ms} ${tz}`.trim();
+  };
+
+  // Get plan name helper using investments
+  const getPlanData = (investment: any) => {
+    if (typeof investment?.planId === 'object' && investment?.planId) return investment.planId;
+    return investment?.plan;
+  };
+  const getFriendlyTitle = (tx: any) => {
+    if (tx.type !== 'roi') return tx.type; // keep simple labels for other types
+    const populatedPlanName = typeof tx?.planId === 'object' && tx?.planId?.name ? tx.planId.name : undefined;
+    if (populatedPlanName) return `ROI payment for ${populatedPlanName}`;
+    const inv = investments?.find((i) => (i as any).id === tx.investmentId || (i as any)._id === tx.investmentId);
+    const name = inv ? (getPlanData(inv as any)?.name || 'Investment') : undefined;
+    return name ? `ROI payment for ${name}` : 'ROI payment';
+  };
+
+  // De-duplicate transactions (general + special handling for ROI daily cycles)
+  const getUtcDayKey = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+  };
+  const buildTxKey = (tx: any) => {
+    if (tx?.reference) return `ref:${tx.reference}`;
+    const d = new Date(getTxDate(tx));
+    const minuteBucket = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${d.getUTCHours()}-${d.getUTCMinutes()}`;
+    return `cmp:${tx.userId}-${tx.type}-${tx.investmentId || ''}-${tx.amount}-${tx.currency}-${minuteBucket}`;
+  };
+  const amountsRoughlyEqual = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.min(Math.abs(a), Math.abs(b)) * 0.01);
+
   // Compute values from backend data
   const totalBalance = walletBalance?.totalBalance?.naira || 0
   const totalBalanceUSDT = walletBalance?.totalBalance?.usdt || 0
@@ -98,20 +143,56 @@ export default function DashboardPage() {
   const usdtPercent = portfolioTotal > 0 ? (portfolioUSDT / portfolioTotal) * 100 : 0
 
   // Transactions
-  const allTransactions = transactionData?.transactions || []
+  const allTransactionsRaw = transactionData?.transactions || []
+  // First pass: remove exact duplicates by reference/minute-bucket
+  const prelimSeen = new Set<string>();
+  const prelim = allTransactionsRaw.filter((tx: any) => {
+    const key = buildTxKey(tx);
+    if (prelimSeen.has(key)) return false;
+    prelimSeen.add(key);
+    return true;
+  });
+  // Second pass: for ROI, collapse per investment per UTC day to the latest entry
+  const latestByGroup = new Map<string, any>();
+  for (const tx of prelim) {
+    if (tx.type !== 'roi') {
+      const key = `other:${tx.reference || buildTxKey(tx)}`;
+      if (!latestByGroup.has(key)) latestByGroup.set(key, tx);
+      else {
+        const existing = latestByGroup.get(key);
+        if (new Date(getTxDate(tx)).getTime() > new Date(getTxDate(existing)).getTime()) latestByGroup.set(key, tx);
+      }
+      continue;
+    }
+    const dayKey = `roi:${tx.investmentId || 'unknown'}:${tx.currency || 'naira'}:${getUtcDayKey(getTxDate(tx))}`;
+    const existing = latestByGroup.get(dayKey);
+    if (!existing) {
+      latestByGroup.set(dayKey, tx);
+    } else {
+      const sameAmount = amountsRoughlyEqual(Number(existing.amount || 0), Number(tx.amount || 0));
+      if (sameAmount) {
+        if (new Date(getTxDate(tx)).getTime() > new Date(getTxDate(existing)).getTime()) latestByGroup.set(dayKey, tx);
+      } else {
+        // keep both with amount suffix
+        const altKey = `${dayKey}:amt:${Number(tx.amount || 0)}`;
+        if (!latestByGroup.has(altKey)) latestByGroup.set(altKey, tx);
+      }
+    }
+  }
+  const allTransactions = Array.from(latestByGroup.values()).sort((a, b) => new Date(getTxDate(b)).getTime() - new Date(getTxDate(a)).getTime());
   type Transaction = typeof allTransactions[number]
   const filteredTransactions = allTransactions.filter((transaction: Transaction) => {
     const matchesSearch = transaction.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          transaction.amount.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (transaction.createdAt || '').toLowerCase().includes(searchQuery.toLowerCase())
+                         (getTxDate(transaction) || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter
     const matchesType = typeFilter === 'all' || transaction.type === typeFilter
     return matchesSearch && matchesStatus && matchesType
   }).sort((a: Transaction, b: Transaction) => {
     if (sortBy === 'date') {
       return sortOrder === 'desc' 
-        ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        ? new Date(getTxDate(b)).getTime() - new Date(getTxDate(a)).getTime()
+        : new Date(getTxDate(a)).getTime() - new Date(getTxDate(b)).getTime()
     }
     if (sortBy === 'amount') {
       const amountA = a.amount
@@ -561,12 +642,12 @@ export default function DashboardPage() {
                           {getTransactionIcon(transaction.type)}
                         </div>
                         <div>
-                          <p className="font-medium capitalize">{transaction.type}</p>
-                          <p className="text-sm text-gray-500">{transaction.createdAt}</p>
+                          <p className="font-medium capitalize">{getFriendlyTitle(transaction)}</p>
+                          <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
-                        <p className="font-medium">{transaction.amount}</p>
+                        <p className="font-medium">{formatCurrency(Number(transaction.amount) || 0, transaction.currency === 'naira' ? 'naira' : 'usdt')}</p>
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -739,12 +820,12 @@ export default function DashboardPage() {
                         {getTransactionIcon(transaction.type)}
                       </div>
                       <div>
-                        <p className="font-medium capitalize">{transaction.type}</p>
-                        <p className="text-sm text-gray-500">{transaction.createdAt}</p>
+                        <p className="font-medium capitalize">{getFriendlyTitle(transaction)}</p>
+                        <p className="text-sm text-gray-500">{formatDateUltra(getTxDate(transaction))}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                      <p className="font-medium">{transaction.amount}</p>
+                      <p className="font-medium">{formatCurrency(Number(transaction.amount) || 0, transaction.currency === 'naira' ? 'naira' : 'usdt')}</p>
                       <span
                         className={cn(
                           "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
