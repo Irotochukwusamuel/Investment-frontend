@@ -35,9 +35,12 @@ import { useWalletBalance, useTransactionHistory } from '@/lib/hooks/useWallet'
 import { useMyInvestments, useInvestmentStats } from '@/lib/hooks/useInvestments'
 import { useUser } from '@/lib/hooks/useAuth'
 import dynamic from 'next/dynamic'
+import Image from 'next/image'
 
 // Import notice display component
 const NoticeDisplay = dynamic(() => import('@/components/NoticeDisplay'), { ssr: false });
+
+const TELEGRAM_LINK = 'https://t.me/KLTmines'
 
 export default function DashboardPage() {
   const { data: user, isLoading: userLoading } = useUser();
@@ -52,6 +55,7 @@ export default function DashboardPage() {
   const { data: investmentStats, isLoading: statsLoading } = useInvestmentStats()
   const router = useRouter()
   const [showAllTransactions, setShowAllTransactions] = useState(false)
+  const [showCommunityPrompt, setShowCommunityPrompt] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [transactionsPerPage] = useState(5)
   const [searchQuery, setSearchQuery] = useState('')
@@ -62,6 +66,21 @@ export default function DashboardPage() {
 
   const isLoading = userLoading || walletLoading || transactionsLoading || investmentsLoading || statsLoading
   const isAdmin = user?.role === 'admin'
+
+  useEffect(() => {
+    const trigger = sessionStorage.getItem('klt-community-trigger')
+    if (trigger === '1') {
+      setShowCommunityPrompt(true)
+      sessionStorage.removeItem('klt-community-trigger')
+      return
+    }
+    // Fallback: show once per session if not triggered explicitly
+    const hasShown = sessionStorage.getItem('klt-community-shown')
+    if (!hasShown) {
+      setShowCommunityPrompt(true)
+      sessionStorage.setItem('klt-community-shown', '1')
+    }
+  }, [])
 
   // Helper to format currency
   const formatCurrency = (amount: number, currency: 'naira' | 'usdt') => {
@@ -237,6 +256,48 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Community Prompt on Dashboard */}
+      <Dialog open={showCommunityPrompt} onOpenChange={setShowCommunityPrompt}>
+        <DialogContent className="sm:max-w-[340px] w-[90vw] rounded-2xl overflow-hidden p-0 bg-gray-800 border-gray-700">
+          <button
+            onClick={() => setShowCommunityPrompt(false)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div className="px-6 pt-6 pb-6 text-center">
+            <div className="mx-auto mb-4 w-20 h-20 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+              <Image src="/images/stock-exchange.jpg" alt="Community" width={80} height={80} className="object-cover w-20 h-20" />
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h2 className="text-2xl font-bold text-white">Traders Community</h2>
+              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+              </svg>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">Created on May 28, 2025</p>
+            <div className="flex justify-center gap-2 mb-4">
+              <Image src="/team/john-smith.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+              <Image src="/team/sarah-johnson.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+              <Image src="/team/michael-chen.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+              <Image src="/team/emily-davis.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+              </svg>
+              <p className="text-white font-medium">KLTMines Official Community</p>
+            </div>
+            <p className="text-gray-300 text-sm mb-6">Join our professional trading community to connect, share insights, and enhance your trading skills.</p>
+            <a href={TELEGRAM_LINK} target="_blank" rel="noopener noreferrer" className="block w-full h-11 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold text-center leading-[2.75rem] hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
+              Join Community
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

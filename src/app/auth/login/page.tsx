@@ -9,11 +9,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useLogin } from '@/lib/hooks/useAuth'
 import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
+const TELEGRAM_LINK = 'https://t.me/KLTmines'
 
 export default function LoginPage() {
   const router = useRouter()
   const loginMutation = useLogin()
   const [showPassword, setShowPassword] = useState(false)
+  const [showCommunityPrompt, setShowCommunityPrompt] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -41,6 +51,10 @@ export default function LoginPage() {
       })
       
       toast.success('Login successful!')
+      // Trigger community modal on dashboard after login
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('klt-community-trigger', '1')
+      }
       router.push('/dashboard')
     } catch (error: any) {
       
@@ -157,6 +171,83 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Community Prompt */}
+      <Dialog open={showCommunityPrompt} onOpenChange={(open) => {
+        setShowCommunityPrompt(open)
+        if (!open) router.push('/dashboard')
+      }}>
+        <DialogContent className="sm:max-w-[480px] w-[95vw] rounded-2xl overflow-hidden p-0 bg-gray-800 border-gray-700">
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setShowCommunityPrompt(false)
+              router.push('/dashboard')
+            }}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <div className="px-6 pt-6 pb-6 text-center">
+            {/* Community Profile Image */}
+            <div className="mx-auto mb-4 w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 7H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-3.01A2.5 2.5 0 0 0 8 7H5.46c-.8 0-1.54.37-2.01.99L1 14.5V22h2v-6h2.5l2.54-7.63A1.5 1.5 0 0 1 9.46 7H12c.8 0 1.54.37 2.01.99L16 11l1.99-3.01A2.5 2.5 0 0 1 20 7h2.54c.8 0 1.54.37 2.01.99L27 14.5V22h-7z"/>
+                </svg>
+              </div>
+            </div>
+            
+            {/* Title with Icon */}
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h2 className="text-2xl font-bold text-white">Traders Community</h2>
+              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+              </svg>
+            </div>
+            
+            {/* Creation Date */}
+            <p className="text-sm text-gray-400 mb-4">Created on May 28, 2025</p>
+            
+            {/* Member Avatars */}
+            <div className="flex justify-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-semibold">A</div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xs font-semibold">B</div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-xs font-semibold">C</div>
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">+</div>
+            </div>
+            
+            {/* Official Community Name */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+              </svg>
+              <p className="text-white font-medium">KLTMines Official Community</p>
+            </div>
+            
+            {/* Description */}
+            <p className="text-gray-300 text-sm mb-2">
+              Welcome to our professional trading community! Here, you can connect with fellow traders, share insights, and enhance your trading skills.
+            </p>
+            
+            {/* Approval Note */}
+            <p className="text-gray-400 text-xs mb-6">An admin must approve your request.</p>
+            
+            {/* Join Community Button */}
+            <a
+              href={TELEGRAM_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full h-12 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold text-center leading-[3rem] hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg"
+            >
+              Join Community
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
