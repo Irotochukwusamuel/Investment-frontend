@@ -178,8 +178,8 @@ export const useWalletBalance = () => {
           usdt: bonusDetails.lockedReferralBonuses?.usdt || 0,
         },
         totalBalance: {
-          naira: (mainWallet.nairaBalance || 0) + (bonusDetails.totalLockedBonuses?.naira || 0),
-          usdt: (mainWallet.usdtBalance || 0) + (bonusDetails.totalLockedBonuses?.usdt || 0),
+          naira: mainWallet.nairaBalance || 0,
+          usdt: mainWallet.usdtBalance || 0,
         },
         totalInvested: mainWallet.totalInvestments || 0,
         totalEarnings: mainWallet.totalEarnings || 0,
