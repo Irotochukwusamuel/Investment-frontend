@@ -22,7 +22,7 @@ export default function MaintenanceBlocker({ children }: { children: React.React
     }
 
     // User is logged in, check maintenance status
-    api.get("/settings/maintenance-status")
+    api.get("/settings/maintenance")
       .then(res => {
         console.log("[MaintenanceBlocker] maintenance-status response:", res.data);
         setMaintenance(res.data.maintenanceMode);
