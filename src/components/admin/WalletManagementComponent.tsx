@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Pagination } from '@/components/ui/pagination';
-import { WalletIcon, PlusIcon, MinusIcon, ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { WalletIcon, PlusIcon, MinusIcon, ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon, BanknotesIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { api, endpoints } from '@/lib/api';
@@ -62,6 +62,9 @@ export default function WalletManagementComponent() {
     reason: '',
   });
 
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -78,11 +81,29 @@ export default function WalletManagementComponent() {
     setPagination(prev => ({ ...prev, limit: itemsPerPage, page: 1 }));
   };
 
+  // Search handlers
+  const handleSearch = async (email: string) => {
+    setSearchLoading(true);
+    setSearchEmail(email);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when searching
+    setSearchLoading(false);
+  };
+
+  const clearSearch = () => {
+    setSearchEmail('');
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
   // Fetch wallets and stats
   const fetchWallets = async () => {
     try {
+      const params: any = { page: pagination.page, limit: pagination.limit };
+      if (searchEmail.trim()) {
+        params.email = searchEmail.trim();
+      }
+
       const [walletsResponse, statsResponse] = await Promise.all([
-        api.get(endpoints.admin.wallet, { params: { page: pagination.page, limit: pagination.limit } }),
+        api.get(endpoints.admin.wallet, { params }),
         api.get(`${endpoints.admin.wallet}/stats`)
       ]);
       
@@ -105,7 +126,7 @@ export default function WalletManagementComponent() {
 
   useEffect(() => {
     fetchWallets();
-  }, [pagination.page, pagination.limit]);
+  }, [pagination.page, pagination.limit, searchEmail]);
 
   // Adjust wallet balance
   const adjustWalletBalance = async () => {
@@ -194,6 +215,78 @@ export default function WalletManagementComponent() {
         </div>
       </div>
 
+      {/* Search Section */}
+      <Card className="mb-6">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg">Search Users</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex gap-4 items-center">
+            <div className="relative flex-1 max-w-md">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search by email address..."
+                value={searchEmail}
+                onChange={(e) => setSearchEmail(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch(searchEmail);
+                  }
+                }}
+                className="pl-10 pr-10"
+                disabled={searchLoading}
+              />
+              {searchEmail && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              onClick={() => handleSearch(searchEmail)}
+              disabled={searchLoading || !searchEmail.trim()}
+              className="min-w-[100px]"
+            >
+              {searchLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Searching...
+                </div>
+              ) : (
+                <>
+                  <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                  Search
+                </>
+              )}
+            </Button>
+            {searchEmail && (
+              <Button
+                variant="outline"
+                onClick={clearSearch}
+                className="min-w-[80px]"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {searchEmail && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <MagnifyingGlassIcon className="h-4 w-4" />
+              Searching for: <span className="font-medium">"{searchEmail}"</span>
+              {pagination.total > 0 && (
+                <span className="text-green-600 dark:text-green-400">
+                  ({pagination.total} result{pagination.total !== 1 ? 's' : ''} found)
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -253,8 +346,18 @@ export default function WalletManagementComponent() {
         <CardContent className="p-6">
           {walletsArray.length === 0 ? (
             <div className="text-center py-8">
-              <WalletIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No wallets found.</p>
+              {searchEmail ? (
+                <>
+                  <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No wallets found for "{searchEmail}".</p>
+                  <p className="text-sm text-gray-400 mt-2">Try searching with a different email address.</p>
+                </>
+              ) : (
+                <>
+                  <WalletIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No wallets found.</p>
+                </>
+              )}
             </div>
           ) : (
             <Table>
