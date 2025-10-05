@@ -40,7 +40,7 @@ import Image from 'next/image'
 // Import notice display component
 const NoticeDisplay = dynamic(() => import('@/components/NoticeDisplay'), { ssr: false });
 
-const TELEGRAM_LINK = 'https://t.me/KLTmines'
+const TELEGRAM_LINK = 'https://t.me/+3iOWqVOheDExYjI0'
 
 export default function DashboardPage() {
   const { data: user, isLoading: userLoading } = useUser();
@@ -277,7 +277,7 @@ export default function DashboardPage() {
                 <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
               </svg>
             </div>
-            <p className="text-sm text-gray-400 mb-4">Created on May 28, 2025</p>
+            <p className="text-sm text-gray-400 mb-4">Created on September 20, 2025</p>
             <div className="flex justify-center gap-2 mb-4">
               <Image src="/team/john-smith.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
               <Image src="/team/sarah-johnson.jpg" alt="member" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
