@@ -40,7 +40,7 @@ import Image from 'next/image'
 // Import notice display component
 const NoticeDisplay = dynamic(() => import('@/components/NoticeDisplay'), { ssr: false });
 
-const TELEGRAM_LINK = 'https://t.me/+3iOWqVOheDExYjI0'
+const TELEGRAM_LINK = 'https://t.me/+vInqXKV1uZllYTI8'
 
 export default function DashboardPage() {
   const { data: user, isLoading: userLoading } = useUser();
